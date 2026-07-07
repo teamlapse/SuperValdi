@@ -1,0 +1,56 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.animations.v1",
+  "contract_row_id": "animations",
+  "surface": "Animations",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "screenshot",
+    "retained_backend",
+    "rust_backend"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR03",
+      "PR06",
+      "PR33"
+    ],
+    "proof_prs": [
+      "PR33",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/animations.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "animations",
+    "root_node_id": "node.animations.root",
+    "component_id": "component.animations",
+    "coverage_tokens": [
+      "start",
+      "end",
+      "cancel",
+      "timing",
+      "easing",
+      "delay",
+      "repeat",
+      "fill mode",
+      "property animation",
+      "layout animation",
+      "transaction grouping"
+    ]
+  }
+}

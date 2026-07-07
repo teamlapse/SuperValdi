@@ -1,0 +1,56 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.native_modules.v1",
+  "contract_row_id": "native_modules",
+  "surface": "Native modules",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "module",
+    "retained_backend",
+    "rust_backend",
+    "tsx_compat"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host",
+    "swift",
+    "kotlin",
+    "js_dom",
+    "cpp_transition",
+    "ts_compatibility"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR18",
+      "PR19",
+      "PR20",
+      "PR21"
+    ],
+    "proof_prs": [
+      "PR21",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/native_modules.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "native_modules",
+    "root_node_id": "node.native_modules.root",
+    "component_id": "component.native_modules",
+    "coverage_tokens": [
+      "Rust contracts",
+      "complete type matrix",
+      "dispatch targets",
+      "Swift/Kotlin/JS/Rust/C++ transition/TS factories"
+    ]
+  }
+}

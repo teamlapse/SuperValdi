@@ -1,0 +1,58 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.bindings_expressions.v1",
+  "contract_row_id": "bindings_expressions",
+  "surface": "Bindings and expressions",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "retained_backend",
+    "rust_backend",
+    "hot_reload",
+    "dynamic_ui"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR03",
+      "PR08",
+      "PR09",
+      "PR11"
+    ],
+    "proof_prs": [
+      "PR08",
+      "PR09",
+      "PR11",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/bindings_expressions.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "bindings_expressions",
+    "root_node_id": "node.bindings_expressions.root",
+    "component_id": "component.bindings_expressions",
+    "coverage_tokens": [
+      "field paths",
+      "literals",
+      "nullable values",
+      "logic",
+      "comparisons",
+      "lists",
+      "computed projections",
+      "platform constants",
+      "source spans"
+    ]
+  }
+}

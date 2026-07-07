@@ -1,0 +1,53 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.tree_structure.v1",
+  "contract_row_id": "tree_structure",
+  "surface": "Tree structure",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "retained_backend",
+    "rust_backend"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR03",
+      "PR06",
+      "PR26"
+    ],
+    "proof_prs": [
+      "PR26",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/tree_structure.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "tree_structure",
+    "root_node_id": "node.tree_structure.root",
+    "component_id": "component.tree_structure",
+    "coverage_tokens": [
+      "root",
+      "parent order",
+      "keyed movement",
+      "fragments",
+      "slots",
+      "portals",
+      "contexts",
+      "destruction",
+      "pooling"
+    ]
+  }
+}

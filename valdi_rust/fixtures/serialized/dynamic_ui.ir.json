@@ -1,0 +1,49 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.dynamic_ui.v1",
+  "contract_row_id": "dynamic_ui",
+  "surface": "Dynamic UI",
+  "fixture_tags": [
+    "dynamic_ui",
+    "ios",
+    "android",
+    "web",
+    "retained_backend",
+    "rust_backend"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR05",
+      "PR13"
+    ],
+    "proof_prs": [
+      "PR13",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/dynamic_ui.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "dynamic_ui",
+    "root_node_id": "node.dynamic_ui.root",
+    "component_id": "component.dynamic_ui",
+    "coverage_tokens": [
+      "validated IR from Rust DSL",
+      "generated fixtures",
+      "JSON debug",
+      "binary bytes",
+      "in-memory producers"
+    ]
+  }
+}

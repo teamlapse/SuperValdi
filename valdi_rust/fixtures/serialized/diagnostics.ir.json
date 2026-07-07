@@ -1,0 +1,59 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.diagnostics.v1",
+  "contract_row_id": "diagnostics",
+  "surface": "Diagnostics",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "static_png",
+    "module",
+    "native_view",
+    "hot_reload",
+    "dynamic_ui",
+    "tsx_compat"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "png",
+    "rust_host",
+    "ts_compatibility"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR05",
+      "PR06",
+      "PR27"
+    ],
+    "proof_prs": [
+      "PR05",
+      "PR27",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/diagnostics.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "diagnostics",
+    "root_node_id": "node.diagnostics.root",
+    "component_id": "component.diagnostics",
+    "coverage_tokens": [
+      "schema paths",
+      "source spans",
+      "backend paths",
+      "capability errors",
+      "unsupported attrs/events",
+      "fixture IDs",
+      "action IDs",
+      "module IDs"
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.actions_state.v1",
+  "contract_row_id": "actions_state",
+  "surface": "Actions and state",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "retained_backend",
+    "rust_backend",
+    "hot_reload",
+    "dynamic_ui"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR03",
+      "PR08",
+      "PR11",
+      "PR12"
+    ],
+    "proof_prs": [
+      "PR08",
+      "PR12",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/actions_state.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "actions_state",
+    "root_node_id": "node.actions_state.root",
+    "component_id": "component.actions_state",
+    "coverage_tokens": [
+      "sync actions",
+      "async actions",
+      "results",
+      "typed errors",
+      "cancellation",
+      "invalidation",
+      "scheduling",
+      "coalescing"
+    ]
+  }
+}

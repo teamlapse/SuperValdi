@@ -1,0 +1,59 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.events_gestures.v1",
+  "contract_row_id": "events_gestures",
+  "surface": "Events and gestures",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "retained_backend",
+    "rust_backend",
+    "hot_reload"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR03",
+      "PR08",
+      "PR32"
+    ],
+    "proof_prs": [
+      "PR32",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/events_gestures.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "events_gestures",
+    "root_node_id": "node.events_gestures.root",
+    "component_id": "component.events_gestures",
+    "coverage_tokens": [
+      "tap",
+      "press",
+      "long press",
+      "pan",
+      "scroll",
+      "focus",
+      "blur",
+      "input",
+      "keyboard submit",
+      "layout",
+      "draw",
+      "visibility",
+      "frame observer",
+      "custom native events"
+    ]
+  }
+}

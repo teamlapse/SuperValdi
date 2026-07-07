@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "owner_pr": "PR04",
+  "source_ir_module": "valdi_rust/ir/src/diagnostics.rs",
+  "invalid_fixture_id_format": "invalid.<diagnostic_family>.v1",
+  "invalid_fixtures": [
+    {
+      "fixture_id": "invalid.schema_path.v1",
+      "diagnostic_family": "schema_path",
+      "expected_diagnostic": {
+        "code": "IR_SCHEMA_PATH_INVALID",
+        "path": "$.root.children[0].kind",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.source_span.v1",
+      "diagnostic_family": "source_span",
+      "expected_diagnostic": {
+        "code": "IR_SOURCE_SPAN_MISSING",
+        "path": "source://fixtures/diagnostics.valdi.rs:1:1",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.backend_path.v1",
+      "diagnostic_family": "backend_path",
+      "expected_diagnostic": {
+        "code": "IR_BACKEND_PATH_UNRESOLVED",
+        "path": "backend://rust_backend/root",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.capability_error.v1",
+      "diagnostic_family": "capability_error",
+      "expected_diagnostic": {
+        "code": "IR_CAPABILITY_UNSUPPORTED",
+        "path": "$.capabilities[missing]",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.unsupported_surface.v1",
+      "diagnostic_family": "unsupported_surface",
+      "expected_diagnostic": {
+        "code": "IR_SURFACE_UNSUPPORTED",
+        "path": "$.element.unsupported",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.fixture_id.v1",
+      "diagnostic_family": "fixture_id",
+      "expected_diagnostic": {
+        "code": "IR_FIXTURE_ID_INVALID",
+        "path": "$.fixture_id",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.action_id.v1",
+      "diagnostic_family": "action_id",
+      "expected_diagnostic": {
+        "code": "IR_ACTION_ID_UNRESOLVED",
+        "path": "$.actions[missing]",
+        "severity": "error"
+      }
+    },
+    {
+      "fixture_id": "invalid.module_id.v1",
+      "diagnostic_family": "module_id",
+      "expected_diagnostic": {
+        "code": "IR_MODULE_ID_UNRESOLVED",
+        "path": "$.modules[missing]",
+        "severity": "error"
+      }
+    }
+  ]
+}

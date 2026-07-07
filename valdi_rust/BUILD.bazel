@@ -37,3 +37,11 @@ test_suite(
         "//valdi_rust/tests:ir_schema_contract_test",
     ],
 )
+
+test_suite(
+    name = "fixture_corpus_tests",
+    tests = [
+        "//valdi_rust/tests:fixture_corpus_contract_test",
+        "//valdi_rust/tests:invalid_fixture_manifest_test",
+    ],
+)

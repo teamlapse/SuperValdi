@@ -1,0 +1,46 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.web_dom.v1",
+  "contract_row_id": "web_dom",
+  "surface": "Web DOM",
+  "fixture_tags": [
+    "web",
+    "dom_snapshot",
+    "screenshot",
+    "rust_backend"
+  ],
+  "platform_targets": [
+    "web",
+    "js_dom"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR16",
+      "PR28"
+    ],
+    "proof_prs": [
+      "PR16",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/web_dom.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "web_dom",
+    "root_node_id": "node.web_dom.root",
+    "component_id": "component.web_dom",
+    "coverage_tokens": [
+      "DOM mapping",
+      "CSS/style mapping",
+      "events",
+      "text measurement",
+      "class emission",
+      "browser snapshots"
+    ]
+  }
+}

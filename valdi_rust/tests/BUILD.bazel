@@ -20,6 +20,7 @@ py_test(
         "$(locations //valdi_rust/backend:backend_sources)",
         "$(locations //valdi_rust/cli:cli_sources)",
         "$(locations //valdi_rust/codegen:codegen_sources)",
+        "$(locations //valdi_rust/fixtures:fixtures_sources)",
         "$(locations //valdi_rust/ir:ir_sources)",
         "$(locations //valdi_rust/runtime:runtime_sources)",
     ],
@@ -28,6 +29,7 @@ py_test(
         "//valdi_rust/backend:backend_sources",
         "//valdi_rust/cli:cli_sources",
         "//valdi_rust/codegen:codegen_sources",
+        "//valdi_rust/fixtures:fixtures_sources",
         "//valdi_rust/ir:ir_sources",
         "//valdi_rust/runtime:runtime_sources",
     ],
@@ -44,6 +46,28 @@ py_test(
         "//docs/rust_migration:replacement_contract_yaml",
         "//valdi_rust/ir:ir_sources",
     ],
+)
+
+py_test(
+    name = "fixture_corpus_contract_test",
+    srcs = ["fixture_corpus_contract_test.py"],
+    args = [
+        "$(location //docs/rust_migration:replacement_contract_yaml)",
+        "$(location //valdi_rust/fixtures:contract_fixture_manifest)",
+        "$(locations //valdi_rust/fixtures:serialized_fixtures)",
+    ],
+    data = [
+        "//docs/rust_migration:replacement_contract_yaml",
+        "//valdi_rust/fixtures:contract_fixture_manifest",
+        "//valdi_rust/fixtures:serialized_fixtures",
+    ],
+)
+
+py_test(
+    name = "invalid_fixture_manifest_test",
+    srcs = ["invalid_fixture_manifest_test.py"],
+    args = ["$(location //valdi_rust/fixtures:invalid_fixture_manifest)"],
+    data = ["//valdi_rust/fixtures:invalid_fixture_manifest"],
 )
 
 valdi_rust_platform_host_placeholder(
