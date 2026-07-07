@@ -52,3 +52,10 @@ test_suite(
         "//valdi_rust/codec:codec_tests",
     ],
 )
+
+test_suite(
+    name = "backend_operation_tests",
+    tests = [
+        "//valdi_rust/backend:backend_operation_tests",
+    ],
+)

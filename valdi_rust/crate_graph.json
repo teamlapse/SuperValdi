@@ -91,6 +91,25 @@
     "cli_label": "//valdi_rust/cli:cli",
     "dependency_repository": "@valdi_rust_crates"
   },
+  "backend_operations": {
+    "owner": "PR06",
+    "crate": "valdi_rust_backend",
+    "test_suite_label": "//valdi_rust:backend_operation_tests",
+    "backend_test_labels": [
+      "//valdi_rust/backend:backend_contract_coverage_test",
+      "//valdi_rust/backend:backend_trait_compile_test",
+      "//valdi_rust/backend:capability_validator_test",
+      "//valdi_rust/backend:mock_backend_snapshot_test"
+    ],
+    "snapshot_label": "//valdi_rust/backend:fixture_tag_backend_ops_snapshot",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "configured_rust_targets": [
+      "host",
+      "aarch64-apple-ios",
+      "aarch64-linux-android"
+    ],
+    "wasm_compile_proof": "blocked_no_rust_wasm_toolchain"
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
