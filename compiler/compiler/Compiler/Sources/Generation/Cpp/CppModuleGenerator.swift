@@ -12,17 +12,23 @@ final class CppModuleGenerator {
     private let exportedModule: ExportedModule
     private let classMapping: ResolvedClassMapping
     private let sourceFileName: GeneratedSourceFilename
+    private let rustGeneratedModelsByTypeName: [String: ValdiModel]
+    private let rustGeneratedEnumsByTypeName: [String: ExportedEnum]
 
     init(bundleInfo: CompilationItem.BundleInfo,
          cppType: CPPType,
          exportedModule: ExportedModule,
          classMapping: ResolvedClassMapping,
-         sourceFileName: GeneratedSourceFilename) {
+         sourceFileName: GeneratedSourceFilename,
+         rustGeneratedModelsByTypeName: [String: ValdiModel] = [:],
+         rustGeneratedEnumsByTypeName: [String: ExportedEnum] = [:]) {
         self.bundleInfo = bundleInfo
         self.cppType = cppType
         self.exportedModule = exportedModule
         self.classMapping = classMapping
         self.sourceFileName = sourceFileName
+        self.rustGeneratedModelsByTypeName = rustGeneratedModelsByTypeName
+        self.rustGeneratedEnumsByTypeName = rustGeneratedEnumsByTypeName
     }
 
     func write() throws -> [NativeSource] {
@@ -98,6 +104,16 @@ final class CppModuleGenerator {
                                    filename: "\(moduleFactoryCppType.declaration.name).cpp",
                                    file: .data(try generator.impl.content.indented.utf8Data()),
                                    groupingIdentifier: "\(bundleInfo.name).cpp", groupingPriority: 0))
+
+        if bundleInfo.projectConfig.cppRustBridgeEnabled {
+            let rustBridgeGenerator = CppRustModuleBridgeGenerator(bundleInfo: bundleInfo,
+                                                                   cppType: cppType,
+                                                                   exportedModule: exportedModule,
+                                                                   sourceFileName: sourceFileName,
+                                                                   generatedModelsByTypeName: rustGeneratedModelsByTypeName,
+                                                                   generatedEnumsByTypeName: rustGeneratedEnumsByTypeName)
+            output += try rustBridgeGenerator.write()
+        }
 
         return output
     }

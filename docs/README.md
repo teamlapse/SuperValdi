@@ -102,6 +102,7 @@
  - [Managed Context Example](../apps/managed_context_example) - shared state across components
  - [Valdi GPT](../apps/valdi_gpt) - AI-driven dynamic UI rendered at runtime
  - [CLI Application Example](../apps/cli_example) - building a Valdi CLI app
+ - [Rust Native Module Example](../apps/rust_example) - Rust-backed native module generated from a TypeScript `@ExportModule`
  - [Benchmark](../apps/benchmark) - performance benchmarks
 
 ## Misc

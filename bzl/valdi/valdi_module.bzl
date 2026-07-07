@@ -79,8 +79,10 @@ def valdi_module(
         ios_deps = [],
         android_deps = [],
         native_deps = [],
+        rust_deps = [],
         macos_deps = [],
         web_deps = [],
+        web_wasm_deps = [],
         web_register_native_module_id_overrides = None,
         exclude_patterns = None,
         exclude_globs = None,
@@ -132,12 +134,20 @@ def valdi_module(
         visibility: The visibility of the Bazel target
         ios_language: The language of the iOS target: "objc", "swift" or "objc, swift".
         native_deps: C++ deps for the module's _desktop native target (SnapDrawing path; macOS and Linux).
+        rust_deps: Rust-backed native deps for the module's native target. Setting this emits the generated
+            {name}_rust_bridge C++ adapter from @ExportModule TypeScript declarations, then appends these deps
+            to native_deps. Deps are expected to expose a cc-compatible provider, usually through
+            valdi_rust_native_module().
         macos_deps: Obj-C/C++ deps for the module's _desktop native target on macOS only (e.g. NSOpenPanel). Ignored on Linux.
+        web_wasm_deps: Rust/WebAssembly web deps. These are appended to web_deps and should expose
+            JavaScript loader files plus their adjacent .wasm artifacts, usually through valdi_rust_web_deps().
         exclude_patterns: file patterns to exclude from the module
         exclude_globs: glob patterns to exclude from the module
         **kwargs: Additional keyword arguments.
     """
     downloadable_assets = True if downloadable_assets == None else downloadable_assets
+    all_native_deps = native_deps + rust_deps
+    all_web_deps = web_deps + web_wasm_deps
 
     if not single_file_codegen:
         fail("single_file_codegen=False is no longer supported. All modules must use single_file_codegen=True (COMPOSER-3173).")
@@ -163,7 +173,8 @@ def valdi_module(
         android_export_strings = android_export_strings,
         module = name,
         deps = [_valdi_compiled_target_for_target(dep) for dep in deps],
-        web_deps = web_deps,
+        web_deps = all_web_deps,
+        rust_bridge_enabled = bool(rust_deps),
         web_register_native_module_id_overrides = web_register_native_module_id_overrides or {},
         srcs = srcs,
         res = res,
@@ -232,11 +243,15 @@ def valdi_module(
     ### 5. Setup the C++ target named {name}_cpp
     _setup_cpp_target(name, all_valdi_module_deps, compiled_module_target, visibility, single_file_codegen)
 
+    ### 5.1. Setup the generated Rust bridge target named {name}_rust_bridge
+    if rust_deps:
+        _setup_rust_bridge_target(name, compiled_module_target, visibility)
+
     #### 6. Setup Web target
-    _setup_web_target(name, all_valdi_module_deps, compiled_module_target, visibility, compilation_mode, web_deps)
+    _setup_web_target(name, all_valdi_module_deps, compiled_module_target, visibility, compilation_mode, all_web_deps)
 
     ### 7. Setup the native targets named {name}_native
-    _setup_native_target(name, all_valdi_module_deps, native_deps, macos_deps, compiled_module_target, visibility)
+    _setup_native_target(name, all_valdi_module_deps, all_native_deps, macos_deps, compiled_module_target, visibility)
 
     ### 8. Setup the test target
     _setup_test_target(name, test_target_name, srcs)
@@ -1072,6 +1087,30 @@ def _setup_cpp_target(name, deps, compiled_module_target, visibility, single_fil
     cc_library_kwargs["strip_include_prefix"] = cpp_strip_prefix
 
     native.cc_library(**cc_library_kwargs)
+
+def _setup_rust_bridge_target(name, compiled_module_target, visibility):
+    extract_valdi_module_output(
+        name = "cpp.rust_bridge.srcs",
+        compiled_module = compiled_module_target,
+        output_name = "cpp_rust_bridge_srcs",
+    )
+
+    extract_valdi_module_output(
+        name = "rust.rust_bridge.srcs",
+        compiled_module = compiled_module_target,
+        output_name = "cpp_rust_bridge_rs_srcs",
+    )
+
+    native.cc_library(
+        name = name + "_rust_bridge",
+        srcs = [":cpp.rust_bridge.srcs"],
+        deps = [
+            ":" + name + "_cpp",
+            "@valdi//valdi_core:valdi_core_cc",
+        ],
+        alwayslink = 1,
+        visibility = visibility,
+    )
 
 def _setup_native_target(name, deps, additional_native_deps, macos_deps, compiled_module_target, visibility):
     ################

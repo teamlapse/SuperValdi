@@ -76,6 +76,7 @@ The [`apps/`](./apps) directory contains runnable examples:
 | [managed_context_example](./apps/managed_context_example) | Sharing state across components with managed context |
 | [valdi_gpt](./apps/valdi_gpt) | AI-driven dynamic UI — Valdi rendering UI described at runtime |
 | [cli_example](./apps/cli_example) | Building a Valdi CLI application |
+| [rust_example](./apps/rust_example) | Rust-backed native module generated from a TypeScript `@ExportModule` |
 | [benchmark](./apps/benchmark) | Performance benchmarks |
 
 ## Why Choose Valdi?

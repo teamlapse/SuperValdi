@@ -11,6 +11,7 @@ def valdi_initialize_rust_workspace():
             "aarch64-apple-ios-sim",
             "aarch64-linux-android",
             "armv7-linux-androideabi",
+            "wasm32-unknown-unknown",
             "x86_64-apple-ios",
             "x86_64-linux-android",
         ],

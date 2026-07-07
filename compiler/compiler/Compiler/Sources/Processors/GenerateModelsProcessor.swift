@@ -78,7 +78,9 @@ final class GenerateModelsProcessor: CompilationProcessor {
         }
     }
 
-    private func generate(selectedItem: SelectedItem<[IntermediateItem]>) -> [CompilationItem] {
+    private func generate(selectedItem: SelectedItem<[IntermediateItem]>,
+                          rustGeneratedModelsByTypeName: [String: ValdiModel],
+                          rustGeneratedEnumsByTypeName: [String: ExportedEnum]) -> [CompilationItem] {
         var out = [CompilationItem]()
         for item in selectedItem.data {
             switch item.exportedType {
@@ -113,7 +115,10 @@ final class GenerateModelsProcessor: CompilationProcessor {
                                   androidClassName: exportedModule.model.androidClassName,
                                   cppType: exportedModule.model.cppType,
                                   generationType: "module",
-                                  generator: ExportedModuleGenerator(bundleInfo: selectedItem.item.bundleInfo, exportedModule: exportedModule))
+                                  generator: ExportedModuleGenerator(bundleInfo: selectedItem.item.bundleInfo,
+                                                                     exportedModule: exportedModule,
+                                                                     rustGeneratedModelsByTypeName: rustGeneratedModelsByTypeName,
+                                                                     rustGeneratedEnumsByTypeName: rustGeneratedEnumsByTypeName))
             }
 
             if let description = typeDescription(for: item.exportedType) {
@@ -128,6 +133,27 @@ final class GenerateModelsProcessor: CompilationProcessor {
         }
 
         return out
+    }
+
+    private func addRustGeneratedModel(_ model: ValdiModel,
+                                       to rustGeneratedModelsByTypeName: inout [String: ValdiModel]) {
+        guard let cppType = model.cppType else {
+            return
+        }
+
+        rustGeneratedModelsByTypeName[model.tsType] = model
+        rustGeneratedModelsByTypeName[cppType.declaration.name] = model
+        rustGeneratedModelsByTypeName[cppType.declaration.fullTypeName] = model
+    }
+
+    private func addRustGeneratedEnum(_ exportedEnum: ExportedEnum,
+                                      to rustGeneratedEnumsByTypeName: inout [String: ExportedEnum]) {
+        guard let cppType = exportedEnum.cppType else {
+            return
+        }
+
+        rustGeneratedEnumsByTypeName[cppType.declaration.name] = exportedEnum
+        rustGeneratedEnumsByTypeName[cppType.declaration.fullTypeName] = exportedEnum
     }
 
     private func shouldProcessItem(item: CompilationItem) -> Bool {
@@ -169,6 +195,28 @@ final class GenerateModelsProcessor: CompilationProcessor {
             }
         }
 
-        return intermediateItems.transformEachConcurrently(generate)
+        return intermediateItems.transformAll { selectedItems -> [CompilationItem] in
+            var rustGeneratedModelsByTypeName = [String: ValdiModel]()
+            var rustGeneratedEnumsByTypeName = [String: ExportedEnum]()
+
+            for selectedItem in selectedItems {
+                for item in selectedItem.data {
+                    switch item.exportedType {
+                    case .valdiModel(let model):
+                        addRustGeneratedModel(model, to: &rustGeneratedModelsByTypeName)
+                    case .enum(let exportedEnum):
+                        addRustGeneratedEnum(exportedEnum, to: &rustGeneratedEnumsByTypeName)
+                    case .function, .module:
+                        continue
+                    }
+                }
+            }
+
+            return selectedItems.parallelMap {
+                generate(selectedItem: $0,
+                         rustGeneratedModelsByTypeName: rustGeneratedModelsByTypeName,
+                         rustGeneratedEnumsByTypeName: rustGeneratedEnumsByTypeName)
+            }.flatMap { $0 }
+        }
     }
 }

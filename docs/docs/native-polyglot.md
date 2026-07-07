@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Polyglot modules are a special kind of Valdi modules that expose a TypeScript API backed by a foreign language implementation, like Objective-C, Swift, C++, Java or Kotlin. When a regular Valdi module depends on a polyglot module, it will also depend on its implementation in the separate language. Some example of usecases for polyglot modules include:
+Polyglot modules are a special kind of Valdi modules that expose a TypeScript API backed by a foreign language implementation, like Objective-C, Swift, C++, Rust, Java or Kotlin. When a regular Valdi module depends on a polyglot module, it will also depend on its implementation in the separate language. Some example of usecases for polyglot modules include:
 
 - Exposing a third party library written in another language like C into TypeScript.
 - Providing a more optimized implementation of a function or module in another language.
@@ -38,8 +38,13 @@ The `valdi_module` Bazel rule that is used for defining Valdi modules exports th
 - `android_deps`: Defines a list of `android_library` dependencies, implemented in a JVM language, that will be built and included on an Android build. This can be used to add a JVM based implementation when targeting Android.
 - `ios_deps`: Defines a list of `apple_library` or `cc_library` dependencies, implemented in a native language like Objective-C, Swift, and will be built and included on an iOS build. This can be used to add a native implementation when targeting iOS.
 - `native_deps`: Defines a list of `cc_library` dependencies, implemented in a native cross-platform language like C++, and will be built and included on all platforms like iOS, Android or Desktop. This can be used to add a native and cross-platform implementation.
+- `rust_deps`: Defines a list of Rust-backed native dependencies, typically produced by `valdi_rust_native_module()`. These dependencies are appended to `native_deps` and use the generated C++ polyglot ABI as the stable registration and marshalling layer.
+- `web_deps`: Defines JavaScript or TypeScript web-native module implementations.
+- `web_wasm_deps`: Defines Rust/WebAssembly web-native module implementations, typically produced by `valdi_rust_web_deps()`. These dependencies are appended to `web_deps` and should expose a JavaScript loader next to its `.wasm` file.
 
 In a typical implementation, either `native_deps` is used, or `android_deps` and `ios_deps` are used. If the implementation is native cross-platform, like when writing bindings for a native library like `zstd`, `native_deps` would be used. If the implementation is platform dependent, like when writing bindings for a Camera API, `android_deps` and `ios_deps` would be used.
+
+Rust native implementations should use `rust_deps` when the Rust crate links into the native app, and `web_wasm_deps` when the Rust crate compiles to WebAssembly for the web package.
 
 ### iOS implementation
 
@@ -221,7 +226,7 @@ valdi_module(
 )
 ```
 
-We then write a C++ implementation file. The Valdi compiler does not yet support C++ codegen, so unfortunately the bindings currently have to be hand written in C++:
+We then write a C++ implementation file. The Valdi compiler generates the typed C++ module interface and factory base from the TypeScript declaration; the implementation only needs to subclass those generated types:
 
 ```c++
 #include "valdi_modules/my_module/my_module.hpp"
@@ -255,9 +260,298 @@ public:
 };
 
 // Register our module to the Valdi runtime
-auto kRegisterModule = RegisterModuleFactory::registerTyped<MyJoinerModule>();
+auto kRegisterModule = RegisterModuleFactory::registerTyped<JoinerModuleFactoryImpl>();
 
 }
 ```
 
-That's it! When TypeScript imports the `.d.ts` file, on all platforms the `loadModule()` of `MyJoinerModule` will be called, which will return the module instance that backs the implementation of the module.
+### Rust implementation
+
+Rust native modules use the same TypeScript source of truth as Objective-C, Swift, Kotlin, Java, and C++ modules. The `@ExportModule` declaration drives Valdi's generated C++ API, and when `rust_deps` is present the compiler also emits a generated `{module}_rust_bridge` C++ adapter. The Rust crate implements the generated C ABI symbols; users do not write C++ adapter classes.
+
+Start with a TypeScript declaration, for example in `my_module/src/Math.d.ts`:
+
+```ts
+/* @ExportModule */
+
+export function add(lhs: number, rhs: number): number;
+```
+
+Add a Rust-backed native implementation target:
+
+```python
+load("//bzl/valdi:valdi_module.bzl", "valdi_module")
+load("//bzl/valdi:valdi_rust_module.bzl", "valdi_rust_native_module")
+
+valdi_rust_native_module(
+    name = "my_module_rust_impl",
+    module = ":my_module",
+    rust_srcs = glob(["rust/**/*.rs"]),
+    crate_root = "rust/lib.rs",
+    crate_name = "my_module_rust",
+)
+
+valdi_module(
+    name = "my_module",
+    srcs = glob(["src/**/*.ts", "src/**/*.tsx"]),
+    rust_deps = [":my_module_rust_impl"],
+    # other module settings...
+)
+```
+
+Because the declaration above is in `Math.d.ts`, the generated native module type is `MathModule`. For module `my_module`, the generated bridge calls this Rust symbol:
+
+```rust
+#[unsafe(no_mangle)]
+pub extern "C" fn valdi_rust_my_module_math_module_add(lhs: f64, rhs: f64) -> f64 {
+    lhs + rhs
+}
+```
+
+The generated bridge derives symbol names as:
+
+```text
+valdi_rust_<module_name>_<generated_module_type>_<method_name>
+```
+
+with each component converted to snake case.
+
+Primitive values use Rust aliases (`number` -> `Double`, `boolean` -> `Bool`, `long` -> `Long`). Strings use Rust `String`, and bytes use the generated `Bytes` alias (`Vec<u8>`). The generated adapter converts those Rust-authored types to and from the concrete C ABI views and owned values. Generated enums are emitted as Rust enums. Generated models, proxies, promises, callbacks, and other converter-backed native values are passed as `ValdiRustHandle` values with retain/release callbacks so Rust can explicitly control lifetime when it stores a handle beyond the current call.
+
+For handle-backed values, the generated Rust adapter emits typed opaque wrappers into the user module before including the Rust source. A TypeScript model like this:
+
+```typescript
+// @ExportModel
+export interface CounterPayload {
+  label: string;
+  value: number;
+}
+
+// @ExportFunction
+export function echoPayload(payload: CounterPayload): CounterPayload;
+```
+
+is authored in Rust using the generated `CounterPayload` type, not a raw ABI handle:
+
+```rust
+pub fn echo_payload(payload: CounterPayload) -> CounterPayload {
+    let label = payload.get_label();
+    let value = payload.get_value();
+    CounterPayload::new(format!("{} echoed", label), value + 1.0)
+}
+```
+
+The wrapper preserves native ownership across the boundary and exposes `new()`,
+`get_<field>()`, `set_<field>()`, borrowed handle access, and
+`retain_for_storage()` for lifetime-sensitive storage. Return values are
+converted through generated adapter code that transfers the native handle back
+to C++.
+
+Generated TypeScript enums are authored as ordinary Rust enum values. For
+example:
+
+```typescript
+/**
+ * @ExportEnum
+ */
+export const enum CounterMode {
+  Manual = 'manual',
+  Rust = 'rust',
+}
+
+// @ExportFunction
+export function modeLabel(mode: CounterMode): string;
+```
+
+is implemented in Rust as:
+
+```rust
+pub fn mode_label(mode: CounterMode) -> String {
+    format!("Rust enum mode: {}", mode.value())
+}
+```
+
+The generated Rust enum includes `from_ffi(...)`, `into_ffi()`, and `value()`.
+The generated C++ adapter exchanges enum ordinals across the Rust C ABI and
+casts back to the generated native enum type, so Rust users do not write the
+C++ bridge or hand-define observer/promise enum conversions.
+
+For example, TypeScript declarations using strings and bytes:
+
+```typescript
+// @ExportFunction
+export function formatCount(prefix: string, value: number): string;
+
+// @ExportFunction
+export function labelBytes(label: string): Uint8Array;
+
+// @ExportFunction
+export function payloadSize(payload: Uint8Array): number;
+```
+
+are implemented with normal Rust types:
+
+```rust
+pub fn format_count(prefix: String, value: Double) -> String {
+    format!("{}: {}", prefix, value as i64)
+}
+
+pub fn label_bytes(label: String) -> Bytes {
+    label.into_bytes()
+}
+
+pub fn payload_size(payload: Bytes) -> Double {
+    payload.len() as Double
+}
+```
+
+Function parameters are also generated into typed Rust callback wrappers. Given
+this TypeScript declaration:
+
+```typescript
+// @ExportFunction
+export function describeAfterIncrement(formatter: (value: number) => string): string;
+```
+
+the Rust implementation receives a generated `DescribeAfterIncrementFormatterCallback`
+with a typed `call` method:
+
+```rust
+pub fn describe_after_increment(formatter: DescribeAfterIncrementFormatterCallback) -> String {
+    let next = 1.0;
+    formatter.call(next)
+}
+```
+
+The generated bridge owns the C++ thunk that converts supported callback
+arguments and return values. Unsupported callback parameter or return shapes are
+rejected by the same native boundary validation used for exported Rust
+functions.
+
+Promise returns are generated as normal Valdi native promises. Rust code returns
+`Promise<T>` and uses the generated resolver helper:
+
+```typescript
+// @ExportFunction
+export function formatCountAsync(value: number): Promise<string>;
+```
+
+```rust
+pub fn format_count_async(value: Double) -> Promise<String> {
+    Promise::resolved(format!("Async Rust count: {}", value as i64))
+}
+
+pub fn load_later() -> Promise<String> {
+    Promise::new(|resolver| {
+        std::thread::spawn(move || {
+            resolver.resolve("done".to_string());
+        });
+    })
+}
+```
+
+The generated C++ adapter converts the Rust promise executor into the existing
+`Valdi::Future<T>` type. `Promise<T>` supports the same boundary values as Rust
+function returns: primitives, strings, bytes, generated enums, generated or
+converted native values as typed handles, and `()` for `Promise<void>`.
+
+### Rust WebAssembly implementation
+
+For web, compile Rust to a `.wasm` artifact and provide a JavaScript loader under the module's web native surface. The repo exposes `//bzl/platforms/os:wasm32_unknown_unknown` for `wasm32-unknown-unknown` Rust builds and registers rules_rust's wasm dummy C++ toolchains in `MODULE.bazel`, so a module can build a Rust wasm target directly:
+
+```python
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("//bzl/valdi:valdi_rust_module.bzl", "valdi_rust_web_deps")
+
+rust_binary(
+    name = "math_wasm",
+    srcs = ["web/math_wasm.rs"],
+    crate_name = "math_wasm",
+    crate_root = "web/math_wasm.rs",
+    edition = "2024",
+    platform = "//bzl/platforms/os:wasm32_unknown_unknown",
+)
+
+valdi_rust_web_deps(
+    name = "my_module_rust_web",
+    module_name = "my_module",
+    js_loader = [":MathWasm.js"],
+    wasm = [":math_wasm"],
+    dts = [":MathWasm.d.ts"],
+)
+
+valdi_module(
+    name = "my_module",
+    srcs = glob(["src/**/*.ts", "src/**/*.tsx"]),
+    web_wasm_deps = [":my_module_rust_web"],
+    # other module settings...
+)
+```
+
+The web packager places the files under `native/my_module/web/`. The JavaScript loader should load the `.wasm` file using a relative path so it continues to work after Valdi collapses native web paths. The loader is registered the same way as other web polyglot modules, so imports from TypeScript continue to resolve through the generated web native-module shims.
+
+The Rust wasm crate can export JS-callable functions with `#[unsafe(no_mangle)] pub extern "C" fn ...`. If the target only exports helper functions, keep an empty `fn main() {}` so the `rust_binary` target can still produce the wasm artifact.
+
+### Observable interop
+
+Valdi does not export RxJS `Observable<T>` directly as a native ABI type. Use the `bridge_observables` module:
+
+- TypeScript APIs expose `Observable<T>` or `Subject<T>` through the `@NativeTypeConverter` definitions in `bridge_observables`.
+- Native APIs receive generated `BridgeObservable<T>`, `BridgeObserver<T>`, or `BridgeSubject<T>` models.
+- Rust implementations return a Rust observable source. The generated adapter subscribes that source to the generated native `BridgeObservable<T>` ABI.
+- The Rust support module provides `Observable<T>` and `BehaviorSubject<T>` aliases for common copyable observable state. It also provides callback-observable aliases for direct observer-backed sources.
+
+For example, this TypeScript declaration:
+
+```typescript
+import { Observable } from 'valdi_rxjs/src/Observable';
+
+/** @ExportModule */
+// @ExportFunction
+export function count(): Observable<number>;
+
+// @ExportFunction
+export function increment(): void;
+```
+
+can be implemented in Rust without hand-writing an observer registry:
+
+```rust
+use std::sync::OnceLock;
+
+static COUNT: OnceLock<BehaviorSubject<Double>> = OnceLock::new();
+
+fn count_subject() -> Observable<Double> {
+    COUNT.get_or_init(|| BehaviorSubject::new(0.0))
+}
+
+pub fn count() -> Observable<Double> {
+    count_subject()
+}
+
+pub fn increment() {
+    let count = count_subject();
+    count.next(count.get() + 1.0);
+}
+```
+
+`Observable<T>` surfaces that convert to `BridgeObservable<T>` and explicit
+`BridgeObservable<T>` declarations are accepted only when `T` is one of the
+native boundary shapes Valdi already supports: primitives, strings, bytes,
+generated enums, arrays/maps of supported types, generated native models,
+marshall-as-untyped native values, or values with an existing
+`@NativeTypeConverter`. Unsupported payload types fail during compilation.
+
+For handle-backed payloads such as generated native models, the Rust observable
+helpers use the generated handle observer ABI. Emit a `ValdiRustTypedHandle<T>`
+for immediate values, or a `ValdiRustRetainedHandle<T>` when the observable
+stores the value across calls.
+
+For generated enum payloads, Rust code returns `Observable<MyEnum>` or
+`BehaviorSubject<MyEnum>`. The generated adapter uses the long observer ABI
+internally and casts the ordinal back to the generated native enum on the C++
+side.
+
+This is the same interop path used by Objective-C, Swift, Kotlin, Java, and C++ implementations, and it keeps unsubscribe, error, and completion semantics consistent with RxJS.
+
+That's it! When TypeScript imports the `.d.ts` file, the generated module factory will load the Rust-backed implementation registered through the generated bridge.

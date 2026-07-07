@@ -83,6 +83,10 @@ def _dest(rel):
         if _is_native_module_js(js_rel):
             return "native/" + _dest_native(rel)
 
+    # Rust/WebAssembly native modules ship their wasm beside the JS loader.
+    if rel.endswith(".wasm") and "/web/" in rel:
+        return "native/" + _dest_native(rel)
+
     # Handle external repository paths (short_path starts with ../ for external repos)
     # and regular source paths. Extract everything after /src/valdi_modules/src/valdi/
     # Works with any external repo name (e.g., ../<repo>/src/valdi_modules/src/valdi/...)
