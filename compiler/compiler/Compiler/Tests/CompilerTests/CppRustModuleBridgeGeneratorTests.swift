@@ -117,6 +117,103 @@ final class CppRustModuleBridgeGeneratorTests: XCTestCase {
         }
     }
 
+    func testGeneratedEnumHelpersAreEmitted() throws {
+        let bundleInfo = try makeRustTestBundleInfo()
+        let moduleCppType = makeCppType(name: "RustTestModule", bundleInfo: bundleInfo)
+        let enumCppType = makeCppType(name: "CounterKind", bundleInfo: bundleInfo, symbolType: .enum)
+        let observableCppType = CPPType(declaration: CPPTypeDeclaration(namespace: "snap::valdi_modules::bridge_observables",
+                                                                        name: "BridgeObservable",
+                                                                        symbolType: .class),
+                                        module: bundleInfo,
+                                        includePrefix: nil)
+        let exportedEnum = ExportedEnum(iosType: nil,
+                                        androidTypeName: nil,
+                                        cppType: enumCppType,
+                                        cases: .enum([
+                                            EnumCase(name: "idle", value: 10, comments: nil),
+                                            EnumCase(name: "running", value: 20, comments: nil),
+                                        ]),
+                                        comments: nil)
+        var enumMapping = ValdiNodeClassMapping(tsType: "CounterKind",
+                                                iosType: nil,
+                                                androidClassName: nil,
+                                                cppType: enumCppType,
+                                                kind: .enum)
+        enumMapping.isGenerated = true
+        var observableMapping = ValdiNodeClassMapping(tsType: "BridgeObservable",
+                                                      iosType: nil,
+                                                      androidClassName: nil,
+                                                      cppType: observableCppType,
+                                                      kind: .class)
+        observableMapping.marshallAsUntyped = true
+
+        let enumType = ValdiModelPropertyType.enum(enumMapping)
+        let observableEnumType = ValdiModelPropertyType.genericObject(observableMapping, typeArguments: [enumType])
+        let moduleModel = ValdiModel(tsType: "RustTestModule",
+                                     iosType: nil,
+                                     androidClassName: nil,
+                                     cppType: moduleCppType,
+                                     typeParameters: nil,
+                                     exportAsInterface: true,
+                                     legacyConstructors: false,
+                                     usePublicFields: false,
+                                     comments: nil,
+                                     properties: [
+                                        modelProperty(name: "echoKind",
+                                                      type: .function(parameters: [
+                                                        modelProperty(name: "kind", type: enumType),
+                                                      ],
+                                                      returnType: enumType,
+                                                      isSingleCall: false,
+                                                      shouldCallOnWorkerThread: false,
+                                                      allowSyncCall: false)),
+                                        modelProperty(name: "kindAsync",
+                                                      type: .function(parameters: [],
+                                                                      returnType: .promise(typeArgument: enumType),
+                                                                      isSingleCall: false,
+                                                                      shouldCallOnWorkerThread: false,
+                                                                      allowSyncCall: false)),
+                                        modelProperty(name: "kindStream",
+                                                      type: .function(parameters: [],
+                                                                      returnType: observableEnumType,
+                                                                      isSingleCall: false,
+                                                                      shouldCallOnWorkerThread: false,
+                                                                      allowSyncCall: false)),
+                                     ])
+        let exportedModule = ExportedModule(model: moduleModel, modulePath: "rust_test/RustCounter")
+        let generator = CppRustModuleBridgeGenerator(bundleInfo: bundleInfo,
+                                                     cppType: moduleCppType,
+                                                     exportedModule: exportedModule,
+                                                     sourceFileName: GeneratedSourceFilename(filename: "RustCounter.d.ts",
+                                                                                             symbolName: "RustTestModule"),
+                                                     generatedEnumsByTypeName: [
+                                                        "CounterKind": exportedEnum,
+                                                        enumCppType.declaration.fullTypeName: exportedEnum,
+                                                     ])
+
+        let sources = try generator.write()
+        let rustSource = try source(named: "rust_test.rust_bridge.rs", in: sources)
+        let cppSource = try source(named: "RustTestModuleRustBridge.cpp", in: sources)
+
+        XCTAssertTrue(rustSource.contains("pub enum CounterKind"))
+        XCTAssertTrue(rustSource.contains("Idle = 0,"))
+        XCTAssertTrue(rustSource.contains("Running = 1,"))
+        XCTAssertTrue(rustSource.contains("pub fn from_ffi(value: i64) -> Self"))
+        XCTAssertTrue(rustSource.contains("pub fn into_ffi(self) -> i64"))
+        XCTAssertTrue(rustSource.contains("Self::Idle => 10,"))
+        XCTAssertTrue(rustSource.contains("impl crate::valdi_rust::ValdiRustPromiseValue for CounterKind"))
+        XCTAssertTrue(rustSource.contains("impl crate::valdi_rust::ValdiRustObservableValue for CounterKind"))
+        XCTAssertTrue(rustSource.contains("pub extern \"C\" fn valdi_rust_rust_test_rust_test_module_echo_kind(kind: i64) -> i64"))
+        XCTAssertTrue(rustSource.contains("valdi_rust_module::echo_kind(valdi_rust_module::CounterKind::from_ffi(kind)).into_ffi()"))
+        XCTAssertTrue(rustSource.contains("pub extern \"C\" fn valdi_rust_rust_test_rust_test_module_kind_stream(observer: valdi_rust::ValdiRustLongObservableObserver) -> valdi_rust::ValdiRustObservableSubscription"))
+
+        XCTAssertTrue(cppSource.contains("return static_cast<CounterKind>(valdi_rust_rust_test_rust_test_module_echo_kind(static_cast<int64_t>(kind)));"))
+        XCTAssertTrue(cppSource.contains("resolver.resolveLong = valdiRustPromiseResolveEnum<CounterKind>;"))
+        XCTAssertTrue(cppSource.contains("valdiRustMakeEnumBridgeObservable<"))
+        XCTAssertTrue(cppSource.contains(", CounterKind>(subscribeRust);"))
+        XCTAssertTrue(cppSource.contains("std::optional<T>(static_cast<T>(value))"))
+    }
+
     private func makeRustTestBundleInfo() throws -> CompilationItem.BundleInfo {
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -179,10 +276,12 @@ final class CppRustModuleBridgeGeneratorTests: XCTestCase {
                                               outputTarget: .all)
     }
 
-    private func makeCppType(name: String, bundleInfo: CompilationItem.BundleInfo) -> CPPType {
+    private func makeCppType(name: String,
+                             bundleInfo: CompilationItem.BundleInfo,
+                             symbolType: CPPTypeDeclaration.SymbolType = .class) -> CPPType {
         CPPType(declaration: CPPTypeDeclaration(namespace: "snap::rust_test",
                                                 name: name,
-                                                symbolType: .class),
+                                                symbolType: symbolType),
                 module: bundleInfo,
                 includePrefix: nil)
     }

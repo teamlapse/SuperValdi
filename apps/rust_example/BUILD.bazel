@@ -1,6 +1,8 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//bzl/valdi:valdi_application.bzl", "valdi_application")
+load("//bzl/valdi:valdi_exported_library.bzl", "valdi_exported_library")
 load("//bzl/valdi:valdi_module.bzl", "valdi_module")
-load("//bzl/valdi:valdi_rust_module.bzl", "valdi_rust_native_module")
+load("//bzl/valdi:valdi_rust_module.bzl", "valdi_rust_native_module", "valdi_rust_web_deps")
 
 valdi_rust_native_module(
     name = "rust_native_module",
@@ -8,6 +10,22 @@ valdi_rust_native_module(
     crate_root = "rust/lib.rs",
     module = ":rust_example",
     rust_srcs = ["rust/lib.rs"],
+)
+
+rust_binary(
+    name = "rust_counter_web_wasm",
+    srcs = ["web/rust_counter_web.rs"],
+    crate_name = "rust_counter_web",
+    crate_root = "web/rust_counter_web.rs",
+    edition = "2024",
+    platform = "//bzl/platforms/os:wasm32_unknown_unknown",
+)
+
+valdi_rust_web_deps(
+    name = "rust_web_module",
+    js_loader = ["web/RustCounter.js"],
+    module_name = "rust_example",
+    wasm = [":rust_counter_web_wasm"],
 )
 
 valdi_module(
@@ -20,6 +38,7 @@ valdi_module(
     ],
     rust_deps = [":rust_native_module"],
     visibility = ["//visibility:public"],
+    web_wasm_deps = [":rust_web_module"],
     deps = [
         "//src/valdi_modules/src/valdi/bridge_observables",
         "//src/valdi_modules/src/valdi/valdi_core",
@@ -36,4 +55,18 @@ valdi_application(
     root_component_path = "App@rust_example/src/RustCounterApp",
     title = "Valdi Rust Counter",
     deps = [":rust_example"],
+)
+
+valdi_exported_library(
+    name = "rust_example_export",
+    ios_bundle_id = "com.snap.valdi.rustexample.lib",
+    ios_bundle_name = "RustExample",
+    web_package_name = "rust_example_npm",
+    deps = [":rust_example"],
+)
+
+sh_test(
+    name = "rust_example_web_wasm_package_test",
+    srcs = ["test/rust_web_package_test.sh"],
+    data = [":rust_example_npm"],
 )

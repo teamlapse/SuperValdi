@@ -85,6 +85,14 @@ platform(
     ],
 )
 
+platform(
+    name = "wasm32_unknown_unknown",
+    constraint_values = [
+        "@platforms//os:none",
+        "@platforms//cpu:wasm32",
+    ],
+)
+
 alias(
     name = "linux_x64",
     actual = ":linux_x86_64",

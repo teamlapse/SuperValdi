@@ -13,17 +13,20 @@ final class CppRustModuleBridgeGenerator {
     private let exportedModule: ExportedModule
     private let sourceFileName: GeneratedSourceFilename
     private let generatedModelsByTypeName: [String: ValdiModel]
+    private let generatedEnumsByTypeName: [String: ExportedEnum]
 
     init(bundleInfo: CompilationItem.BundleInfo,
          cppType: CPPType,
          exportedModule: ExportedModule,
          sourceFileName: GeneratedSourceFilename,
-         generatedModelsByTypeName: [String: ValdiModel] = [:]) {
+         generatedModelsByTypeName: [String: ValdiModel] = [:],
+         generatedEnumsByTypeName: [String: ExportedEnum] = [:]) {
         self.bundleInfo = bundleInfo
         self.cppType = cppType
         self.exportedModule = exportedModule
         self.sourceFileName = sourceFileName
         self.generatedModelsByTypeName = generatedModelsByTypeName
+        self.generatedEnumsByTypeName = generatedEnumsByTypeName
     }
 
     private struct CppPropertyName {
@@ -65,6 +68,11 @@ final class CppRustModuleBridgeGenerator {
         let model: ValdiModel
     }
 
+    private struct RustEnumDefinition {
+        let rustName: String
+        let exportedEnum: ExportedEnum
+    }
+
     private enum RustBridgeObservableKind: Equatable {
         case double
         case bool
@@ -72,6 +80,7 @@ final class CppRustModuleBridgeGenerator {
         case string
         case bytes
         case handle
+        case enumValue
 
         var cppObserverType: String {
             switch self {
@@ -87,6 +96,8 @@ final class CppRustModuleBridgeGenerator {
                 return "ValdiRustBytesObservableObserver"
             case .handle:
                 return "ValdiRustHandleObservableObserver"
+            case .enumValue:
+                return "ValdiRustLongObservableObserver"
             }
         }
 
@@ -108,6 +119,8 @@ final class CppRustModuleBridgeGenerator {
                 return "valdiRustMakeBytesBridgeObservable"
             case .handle:
                 return "valdiRustMakeHandleBridgeObservable"
+            case .enumValue:
+                return "valdiRustMakeEnumBridgeObservable"
             }
         }
     }
@@ -168,10 +181,39 @@ final class CppRustModuleBridgeGenerator {
         return generatedModelsByTypeName[mapping.tsType]
     }
 
+    private func generatedEnum(for mapping: ValdiNodeClassMapping) -> ExportedEnum? {
+        guard mapping.isGenerated else {
+            return nil
+        }
+
+        if let fullTypeName = mapping.cppType?.declaration.fullTypeName,
+           let exportedEnum = generatedEnumsByTypeName[fullTypeName] {
+            return exportedEnum
+        }
+
+        if let typeName = mapping.cppType?.declaration.name,
+           let exportedEnum = generatedEnumsByTypeName[typeName] {
+            return exportedEnum
+        }
+
+        return generatedEnumsByTypeName[mapping.tsType]
+    }
+
+    private func isGeneratedRustEnumType(_ type: ValdiModelPropertyType) -> Bool {
+        guard !type.isOptional,
+              case .enum(let mapping) = type.unwrappingOptional else {
+            return false
+        }
+
+        return generatedEnum(for: mapping)?.cppType != nil
+    }
+
     private func isLocalRustWrapperType(_ type: ValdiModelPropertyType) -> Bool {
         switch type.unwrappingOptional {
-        case .object, .enum, .genericObject:
+        case .object, .genericObject:
             return !type.isOptional
+        case .enum:
+            return !type.isOptional && !isGeneratedRustEnumType(type)
         default:
             return false
         }
@@ -228,6 +270,101 @@ final class CppRustModuleBridgeGenerator {
             }
         case .promise(let typeArgument):
             collectRustGeneratedModelDefinitions(type: typeArgument, definitions: &definitions)
+        case .string, .double, .bool, .long, .bytes, .any, .void, .genericTypeParameter:
+            return
+        }
+    }
+
+    private func collectRustGeneratedEnumDefinitions(type: ValdiModelPropertyType,
+                                                     definitions: inout [String: RustEnumDefinition]) {
+        var visitedModelTypes = Set<String>()
+        collectRustGeneratedEnumDefinitions(type: type,
+                                            definitions: &definitions,
+                                            visitedModelTypes: &visitedModelTypes)
+    }
+
+    private func collectRustGeneratedEnumDefinitions(type: ValdiModelPropertyType,
+                                                     definitions: inout [String: RustEnumDefinition],
+                                                     visitedModelTypes: inout Set<String>) {
+        switch type {
+        case .nullable(let innerType):
+            collectRustGeneratedEnumDefinitions(type: innerType,
+                                                definitions: &definitions,
+                                                visitedModelTypes: &visitedModelTypes)
+        case .array(let elementType):
+            collectRustGeneratedEnumDefinitions(type: elementType,
+                                                definitions: &definitions,
+                                                visitedModelTypes: &visitedModelTypes)
+        case .map(let keyType, let valueType):
+            collectRustGeneratedEnumDefinitions(type: keyType,
+                                                definitions: &definitions,
+                                                visitedModelTypes: &visitedModelTypes)
+            collectRustGeneratedEnumDefinitions(type: valueType,
+                                                definitions: &definitions,
+                                                visitedModelTypes: &visitedModelTypes)
+        case .function(let parameters, let returnType, _, _, _):
+            parameters.forEach {
+                collectRustGeneratedEnumDefinitions(type: $0.type,
+                                                    definitions: &definitions,
+                                                    visitedModelTypes: &visitedModelTypes)
+            }
+            collectRustGeneratedEnumDefinitions(type: returnType,
+                                                definitions: &definitions,
+                                                visitedModelTypes: &visitedModelTypes)
+        case .enum(let mapping):
+            guard let exportedEnum = generatedEnum(for: mapping),
+                  let enumCppType = exportedEnum.cppType else {
+                return
+            }
+
+            let key = enumCppType.declaration.fullTypeName
+            if definitions[key] == nil {
+                definitions[key] = RustEnumDefinition(rustName: rustTypeIdentifier(mapping.tsType),
+                                                      exportedEnum: exportedEnum)
+            }
+        case .object(let mapping):
+            guard let model = generatedModel(for: mapping),
+                  let modelCppType = model.cppType else {
+                return
+            }
+
+            let key = modelCppType.declaration.fullTypeName
+            guard visitedModelTypes.insert(key).inserted else {
+                return
+            }
+
+            model.properties.forEach {
+                collectRustGeneratedEnumDefinitions(type: $0.type,
+                                                    definitions: &definitions,
+                                                    visitedModelTypes: &visitedModelTypes)
+            }
+        case .genericObject(let mapping, let typeArguments):
+            typeArguments.forEach {
+                collectRustGeneratedEnumDefinitions(type: $0,
+                                                    definitions: &definitions,
+                                                    visitedModelTypes: &visitedModelTypes)
+            }
+
+            guard let model = generatedModel(for: mapping),
+                  typeArguments.isEmpty,
+                  let modelCppType = model.cppType else {
+                return
+            }
+
+            let key = modelCppType.declaration.fullTypeName
+            guard visitedModelTypes.insert(key).inserted else {
+                return
+            }
+
+            model.properties.forEach {
+                collectRustGeneratedEnumDefinitions(type: $0.type,
+                                                    definitions: &definitions,
+                                                    visitedModelTypes: &visitedModelTypes)
+            }
+        case .promise(let typeArgument):
+            collectRustGeneratedEnumDefinitions(type: typeArgument,
+                                                definitions: &definitions,
+                                                visitedModelTypes: &visitedModelTypes)
         case .string, .double, .bool, .long, .bytes, .any, .void, .genericTypeParameter:
             return
         }
@@ -369,6 +506,8 @@ final class CppRustModuleBridgeGenerator {
                 return .string
             case .bytes:
                 return .bytes
+            case .enum(_) where isGeneratedRustEnumType(valueType):
+                return .enumValue
             case .nullable:
                 return .handle
             default:
@@ -382,6 +521,10 @@ final class CppRustModuleBridgeGenerator {
     private func rustFFIParameterType(for type: ValdiModelPropertyType) -> String {
         if type.isOptional {
             return "valdi_rust::ValdiRustHandle"
+        }
+
+        if isGeneratedRustEnumType(type) {
+            return "i64"
         }
 
         switch type.unwrappingOptional {
@@ -403,6 +546,10 @@ final class CppRustModuleBridgeGenerator {
     private func isRustHandleBackedUserType(_ type: ValdiModelPropertyType) -> Bool {
         if type.isOptional {
             return true
+        }
+
+        if isGeneratedRustEnumType(type) {
+            return false
         }
 
         switch type.unwrappingOptional {
@@ -463,6 +610,10 @@ final class CppRustModuleBridgeGenerator {
             return "valdi_rust::Promise::from_handle(\(name))"
         }
 
+        if isGeneratedRustEnumType(type) {
+            return "valdi_rust_module::\(rustUserTypeName(for: type))::from_ffi(\(name))"
+        }
+
         if isRustHandleBackedUserType(type) {
             if isLocalRustWrapperType(type) {
                 return "valdi_rust_module::\(rustUserTypeName(for: type))::from_handle(\(name))"
@@ -486,6 +637,10 @@ final class CppRustModuleBridgeGenerator {
 
     private func rustUserReturnExpression(returnType: ValdiModelPropertyType, callExpression: String) -> String {
         if isPromiseType(returnType) {
+            return "\(callExpression).into_ffi()"
+        }
+
+        if isGeneratedRustEnumType(returnType) {
             return "\(callExpression).into_ffi()"
         }
 
@@ -522,7 +677,16 @@ final class CppRustModuleBridgeGenerator {
         case .function(let parameters, let returnType, _, _, _):
             parameters.forEach { collectRustHandleTypeDefinitions(type: $0.type, definitions: &definitions) }
             collectRustHandleTypeDefinitions(type: returnType, definitions: &definitions)
-        case .object(let mapping), .enum(let mapping):
+        case .object(let mapping):
+            let typeName = rustTypeIdentifier(mapping.tsType)
+            if !typeName.isEmpty {
+                definitions.insert(RustHandleTypeDefinition(name: typeName, typeParameterCount: 0))
+            }
+        case .enum(let mapping):
+            if generatedEnum(for: mapping) != nil {
+                return
+            }
+
             let typeName = rustTypeIdentifier(mapping.tsType)
             if !typeName.isEmpty {
                 definitions.insert(RustHandleTypeDefinition(name: typeName, typeParameterCount: 0))
@@ -689,6 +853,103 @@ final class CppRustModuleBridgeGenerator {
         }.joined(separator: "\n\n")
     }
 
+    private func rustEnumHelperRustSource(definition: RustEnumDefinition) -> String {
+        let caseData: [(name: String, ordinal: Int, valueLiteral: String, valueType: String, comments: String?)]
+        switch definition.exportedEnum.cases {
+        case .enum(let intCases):
+            caseData = intCases.enumerated().map { index, enumCase in
+                (name: enumCase.name,
+                 ordinal: index,
+                 valueLiteral: "\(enumCase.value)",
+                 valueType: "i64",
+                 comments: enumCase.comments)
+            }
+        case .stringEnum(let stringCases):
+            caseData = stringCases.enumerated().map { index, enumCase in
+                (name: enumCase.name,
+                 ordinal: index,
+                 valueLiteral: "\"\(enumCase.value.jsonEscaped)\"",
+                 valueType: "&'static str",
+                 comments: enumCase.comments)
+            }
+        }
+
+        var usedVariantNames = Set<String>()
+        let variants = caseData.map { enumCase -> (name: String, ordinal: Int, valueLiteral: String, comments: String?) in
+            let baseName = rustTypeIdentifier(enumCase.name)
+            var variantName = baseName
+            var index = 2
+            while usedVariantNames.contains(variantName) {
+                variantName = "\(baseName)\(index)"
+                index += 1
+            }
+            usedVariantNames.insert(variantName)
+            return (name: variantName, ordinal: enumCase.ordinal, valueLiteral: enumCase.valueLiteral, comments: enumCase.comments)
+        }
+        let valueType = caseData.first?.valueType ?? "i64"
+        let variantDeclarations = variants.map { variant -> String in
+            let comments = variant.comments.map {
+                "\(FileHeaderCommentGenerator.generateMultilineComment(comment: $0))\n"
+            } ?? ""
+            return "\(comments)\(variant.name) = \(variant.ordinal),"
+        }.joined(separator: "\n")
+        let fromFFIArms = variants.map {
+            "\($0.ordinal) => Self::\($0.name),"
+        }.joined(separator: "\n")
+        let valueArms = variants.map {
+            "Self::\($0.name) => \($0.valueLiteral),"
+        }.joined(separator: "\n")
+
+        return """
+
+            #[repr(i64)]
+            #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+            pub enum \(definition.rustName) {
+            \(variantDeclarations.indented)
+            }
+
+            impl \(definition.rustName) {
+                pub fn from_ffi(value: i64) -> Self {
+                    match value {
+            \(fromFFIArms.indented.indented.indented)
+                        _ => panic!("Invalid \(definition.rustName) ordinal {}", value),
+                    }
+                }
+
+                pub fn into_ffi(self) -> i64 {
+                    self as i64
+                }
+
+                pub fn value(self) -> \(valueType) {
+                    match self {
+            \(valueArms.indented.indented.indented)
+                    }
+                }
+            }
+
+            impl crate::valdi_rust::ValdiRustPromiseValue for \(definition.rustName) {
+                fn resolve_with(resolver: &crate::valdi_rust::ValdiRustPromiseResolver, value: Self) {
+                    (resolver.resolve_long)(resolver.context, value.into_ffi());
+                }
+            }
+
+            impl crate::valdi_rust::ValdiRustObservableValue for \(definition.rustName) {
+                type Observer = crate::valdi_rust::ValdiRustLongObservableObserver;
+            }
+
+            impl crate::valdi_rust::ValdiRustObserver<\(definition.rustName)> for crate::valdi_rust::ValdiRustLongObservableObserver {
+                fn next(&self, value: \(definition.rustName)) {
+                    crate::valdi_rust::ValdiRustLongObservableObserver::next(self, value.into_ffi());
+                }
+
+                fn release(&self) {
+                    crate::valdi_rust::ValdiRustLongObservableObserver::release(self);
+                }
+            }
+
+        """
+    }
+
     private func rustFFIReturnType(for type: ValdiModelPropertyType) -> String? {
         switch type.unwrappingOptional {
         case .void:
@@ -707,6 +968,10 @@ final class CppRustModuleBridgeGenerator {
     private func ffiType(for type: ValdiModelPropertyType) -> FFIType {
         if type.isOptional {
             return FFIType(name: "ValdiRustHandle")
+        }
+
+        if isGeneratedRustEnumType(type) {
+            return FFIType(name: "int64_t")
         }
 
         switch type.unwrappingOptional {
@@ -742,6 +1007,10 @@ final class CppRustModuleBridgeGenerator {
 
     private func makeFFIParameter(type: ValdiModelPropertyType, cppTypeName: String, name: String) -> FFIParameter {
         let rustName = "\(name)Rust"
+        if isGeneratedRustEnumType(type) {
+            return FFIParameter(type: ffiType(for: type), prelude: "", expression: "static_cast<int64_t>(\(name))")
+        }
+
         switch type.unwrappingOptional {
         case .double, .bool, .long:
             if type.isOptional {
@@ -792,6 +1061,8 @@ final class CppRustModuleBridgeGenerator {
         switch returnType.unwrappingOptional {
         case .void:
             return "\(callExpression);\n"
+        case .enum(_) where isGeneratedRustEnumType(returnType):
+            return "return static_cast<\(cppTypeName)>(\(callExpression));\n"
         case .double, .bool, .long:
             if returnType.isOptional {
                 return "return valdiRustBridgeTakeBoxedValue<\(cppTypeName)>(\(callExpression));\n"
@@ -815,6 +1086,10 @@ final class CppRustModuleBridgeGenerator {
     private func callbackCallArgumentExpression(type: ValdiModelPropertyType,
                                                 cppTypeName: String,
                                                 name: String) -> (prelude: String, expression: String) {
+        if isGeneratedRustEnumType(type) {
+            return ("", "static_cast<\(cppTypeName)>(\(name))")
+        }
+
         switch type.unwrappingOptional {
         case .double, .bool, .long:
             if type.isOptional {
@@ -842,6 +1117,8 @@ final class CppRustModuleBridgeGenerator {
         switch returnType.unwrappingOptional {
         case .void:
             return "\(callExpression);\n"
+        case .enum(_) where isGeneratedRustEnumType(returnType):
+            return "return static_cast<int64_t>(\(callExpression));\n"
         case .double, .bool, .long:
             if returnType.isOptional {
                 return "return valdiRustBridgeRetainBoxedValue<\(cppTypeName)>(\(callExpression));\n"
@@ -866,6 +1143,10 @@ final class CppRustModuleBridgeGenerator {
                                               valueCppTypeName: String) -> String {
         if valueType.isOptional {
             return "resolver.resolveHandle = valdiRustPromiseResolveHandle<\(valueCppTypeName)>;"
+        }
+
+        if isGeneratedRustEnumType(valueType) {
+            return "resolver.resolveLong = valdiRustPromiseResolveEnum<\(valueCppTypeName)>;"
         }
 
         switch valueType.unwrappingOptional {
@@ -905,6 +1186,10 @@ final class CppRustModuleBridgeGenerator {
 
     private func rustCallbackCallArgument(type: ValdiModelPropertyType,
                                           name: String) -> (prelude: String, expression: String) {
+        if isGeneratedRustEnumType(type) {
+            return ("", "\(name).into_ffi()")
+        }
+
         switch type.unwrappingOptional {
         case .string:
             if type.isOptional {
@@ -933,6 +1218,8 @@ final class CppRustModuleBridgeGenerator {
         switch returnType.unwrappingOptional {
         case .void:
             return resultName
+        case .enum(_) where isGeneratedRustEnumType(returnType):
+            return "\(rustUserTypeName(for: returnType))::from_ffi(\(resultName))"
         case .string:
             if returnType.isOptional {
                 return "\(rustUserTypeName(for: returnType))::from_handle(\(resultName))"
@@ -1070,6 +1357,10 @@ final class CppRustModuleBridgeGenerator {
 
     private func rustModelCallArgument(type: ValdiModelPropertyType,
                                        name: String) -> (prelude: String, expression: String) {
+        if isGeneratedRustEnumType(type) {
+            return ("", "\(name).into_ffi()")
+        }
+
         switch type.unwrappingOptional {
         case .string:
             if type.isOptional {
@@ -1098,6 +1389,8 @@ final class CppRustModuleBridgeGenerator {
     private func rustModelReturnExpression(type: ValdiModelPropertyType,
                                            resultName: String) -> String {
         switch type.unwrappingOptional {
+        case .enum(_) where isGeneratedRustEnumType(type):
+            return "\(rustUserTypeName(for: type))::from_ffi(\(resultName))"
         case .string:
             if type.isOptional {
                 return "\(rustUserTypeName(for: type))::from_handle(\(resultName))"
@@ -1490,6 +1783,11 @@ final class CppRustModuleBridgeGenerator {
             }
 
             template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveEnum(void *context, int64_t value) {
+                valdiRustPromiseSetValue<T>(context, static_cast<T>(value));
+            }
+
+            template<typename T>
             [[maybe_unused]] static void valdiRustPromiseResolveString(void *context, ValdiRustStringView value) {
                 valdiRustPromiseSetValue<T>(context, valdiRustStringViewToStringBox(value));
             }
@@ -1610,6 +1908,15 @@ final class CppRustModuleBridgeGenerator {
                            nullptr);
             }
 
+            template<typename OnEventFn, typename T>
+            [[maybe_unused]] static void valdiRustEnumObservableNext(void *context, int64_t value) {
+                auto *box = Valdi::unsafeBridgeUnretained<ValdiRustBridgeBox<OnEventFn>>(context);
+                box->value(::snap::valdi_modules::bridge_observables::BridgeObserverEvent::NEXT,
+                           std::nullopt,
+                           std::optional<T>(static_cast<T>(value)),
+                           nullptr);
+            }
+
             template<typename OnEventFn>
             [[maybe_unused]] static void valdiRustStringObservableNext(void *context, ValdiRustStringView value) {
                 auto *box = Valdi::unsafeBridgeUnretained<ValdiRustBridgeBox<OnEventFn>>(context);
@@ -1696,6 +2003,12 @@ final class CppRustModuleBridgeGenerator {
                 return valdiRustMakeBridgeObservable<Observable, ValdiRustLongObservableObserver>(subscribeRust, valdiRustLongObservableNext<OnEventFn>);
             }
 
+            template<typename Observable, typename Value, typename SubscribeRust>
+            [[maybe_unused]] static Observable valdiRustMakeEnumBridgeObservable(SubscribeRust subscribeRust) {
+                using OnEventFn = typename Observable::SubscribeOnEventFn;
+                return valdiRustMakeBridgeObservable<Observable, ValdiRustLongObservableObserver>(subscribeRust, valdiRustEnumObservableNext<OnEventFn, Value>);
+            }
+
             template<typename Observable, typename SubscribeRust>
             [[maybe_unused]] static Observable valdiRustMakeStringBridgeObservable(SubscribeRust subscribeRust) {
                 using OnEventFn = typename Observable::SubscribeOnEventFn;
@@ -1757,9 +2070,11 @@ final class CppRustModuleBridgeGenerator {
         var callbackThunks = ""
         var rustCallbackWrappers = ""
         var modelHelperThunks = ""
+        var rustEnumHelpers = ""
         var rustModelHelpers = ""
         var rustHandleTypeDefinitions = Set<RustHandleTypeDefinition>()
         var rustGeneratedModelDefinitions = [String: RustModelDefinition]()
+        var rustGeneratedEnumDefinitions = [String: RustEnumDefinition]()
 
         for property in exportedModule.model.properties {
             switch property.type {
@@ -1768,6 +2083,8 @@ final class CppRustModuleBridgeGenerator {
                 collectRustHandleTypeDefinitions(type: returnType, definitions: &rustHandleTypeDefinitions)
                 parameters.forEach { collectRustGeneratedModelDefinitions(type: $0.type, definitions: &rustGeneratedModelDefinitions) }
                 collectRustGeneratedModelDefinitions(type: returnType, definitions: &rustGeneratedModelDefinitions)
+                parameters.forEach { collectRustGeneratedEnumDefinitions(type: $0.type, definitions: &rustGeneratedEnumDefinitions) }
+                collectRustGeneratedEnumDefinitions(type: returnType, definitions: &rustGeneratedEnumDefinitions)
 
                 let methodTypeParser = try typeGenerator.getTypeParser(type: property.type, namePaths: [property.name], nameAllocator: nameAllocator)
                 let propertyName = resolvePropertyName(property: property, nameAllocator: nameAllocator)
@@ -1853,7 +2170,7 @@ final class CppRustModuleBridgeGenerator {
 
                     """
                     let observableFactoryExpression: String
-                    if bridgeObservableReturn == .handle {
+                    if bridgeObservableReturn == .handle || bridgeObservableReturn == .enumValue {
                         guard case .genericObject(_, let typeArguments) = returnType.unwrappingOptional,
                               typeArguments.count == 1 else {
                             throw CompilerError("Could not resolve Rust BridgeObservable value type for \(property.name)")
@@ -1929,6 +2246,7 @@ final class CppRustModuleBridgeGenerator {
             default:
                 collectRustHandleTypeDefinitions(type: property.type, definitions: &rustHandleTypeDefinitions)
                 collectRustGeneratedModelDefinitions(type: property.type, definitions: &rustGeneratedModelDefinitions)
+                collectRustGeneratedEnumDefinitions(type: property.type, definitions: &rustGeneratedEnumDefinitions)
 
                 try validateRustBoundaryType(property.type, context: "exported module property '\(property.name)'")
 
@@ -1987,6 +2305,10 @@ final class CppRustModuleBridgeGenerator {
             rustModelHelpers += try rustModelHelperRustSource(definition: definition)
         }
 
+        for definition in rustGeneratedEnumDefinitions.values.sorted(by: { $0.rustName < $1.rustName }) {
+            rustEnumHelpers += rustEnumHelperRustSource(definition: definition)
+        }
+
         generator.body.appendBody("""
             \(modelHelperThunks)
 
@@ -2025,6 +2347,7 @@ final class CppRustModuleBridgeGenerator {
             NativeSource(relativePath: cppType.includeDir,
                          filename: "\(bundleInfo.name).rust_bridge.rs",
                          file: .data(try rustAdapterSource(typeDefinitions: rustHandleTypeDefinitionsSource(definitions: rustHandleTypeDefinitions),
+                                                           enumHelpers: rustEnumHelpers,
                                                            callbackWrappers: rustCallbackWrappers,
                                                            modelHelpers: rustModelHelpers,
                                                            functions: rustAdapterFunctions).utf8Data()),
@@ -2033,7 +2356,7 @@ final class CppRustModuleBridgeGenerator {
         ]
     }
 
-    private func rustAdapterSource(typeDefinitions: String, callbackWrappers: String, modelHelpers: String, functions: String) -> String {
+    private func rustAdapterSource(typeDefinitions: String, enumHelpers: String, callbackWrappers: String, modelHelpers: String, functions: String) -> String {
         return """
             // Generated Rust adapter for \(cppType.declaration.fullTypeName).
             // Rust symbols are derived from the @ExportModule TypeScript declaration.
@@ -2049,6 +2372,7 @@ final class CppRustModuleBridgeGenerator {
                 use crate::valdi_rust::*;
 
             \(typeDefinitions)
+            \(enumHelpers)
             \(callbackWrappers)
             \(modelHelpers)
 

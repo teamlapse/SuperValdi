@@ -8,6 +8,15 @@ import { Observable } from 'valdi_rxjs/src/Observable';
 export interface CounterPayload {
   label: string;
   value: number;
+  mode: CounterMode;
+}
+
+/**
+ * @ExportEnum
+ */
+export const enum CounterMode {
+  Manual = 'manual',
+  Rust = 'rust',
 }
 
 // @ExportFunction
@@ -33,3 +42,6 @@ export function payloadSize(payload: Uint8Array): number;
 
 // @ExportFunction
 export function echoPayload(payload: CounterPayload): CounterPayload;
+
+// @ExportFunction
+export function modeLabel(mode: CounterMode): string;

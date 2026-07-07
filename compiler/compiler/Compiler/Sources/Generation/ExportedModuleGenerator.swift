@@ -4,12 +4,15 @@ final class ExportedModuleGenerator: NativeSourceGenerator {
 
     private let exportedModule: ExportedModule
     private let rustGeneratedModelsByTypeName: [String: ValdiModel]
+    private let rustGeneratedEnumsByTypeName: [String: ExportedEnum]
 
     init(bundleInfo: CompilationItem.BundleInfo,
          exportedModule: ExportedModule,
-         rustGeneratedModelsByTypeName: [String: ValdiModel] = [:]) {
+         rustGeneratedModelsByTypeName: [String: ValdiModel] = [:],
+         rustGeneratedEnumsByTypeName: [String: ExportedEnum] = [:]) {
         self.exportedModule = exportedModule
         self.rustGeneratedModelsByTypeName = rustGeneratedModelsByTypeName
+        self.rustGeneratedEnumsByTypeName = rustGeneratedEnumsByTypeName
     }
 
     func generateSwiftSources(parameters: NativeSourceParameters, type: IOSType) throws -> [NativeSource] {
@@ -41,7 +44,8 @@ final class ExportedModuleGenerator: NativeSourceGenerator {
                                               exportedModule: exportedModule,
                                               classMapping: parameters.classMapping,
                                               sourceFileName: parameters.sourceFileName,
-                                              rustGeneratedModelsByTypeName: rustGeneratedModelsByTypeName)
+                                              rustGeneratedModelsByTypeName: rustGeneratedModelsByTypeName,
+                                              rustGeneratedEnumsByTypeName: rustGeneratedEnumsByTypeName)
         return try cppGenerator.write()
     }
 }

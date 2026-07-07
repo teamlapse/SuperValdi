@@ -41,5 +41,10 @@ pub fn payload_size(payload: Bytes) -> Double {
 pub fn echo_payload(payload: CounterPayload) -> CounterPayload {
     let label = payload.get_label();
     let value = payload.get_value();
-    CounterPayload::new(format!("{} echoed", label), value + 1.0)
+    let mode = payload.get_mode();
+    CounterPayload::new(format!("{} echoed", label), value + 1.0, mode)
+}
+
+pub fn mode_label(mode: CounterMode) -> String {
+    format!("Rust enum mode: {}", mode.value())
 }

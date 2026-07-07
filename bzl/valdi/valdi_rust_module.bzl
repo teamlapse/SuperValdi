@@ -1019,6 +1019,8 @@ def valdi_rust_native_module(
     generated_bridge_rs_dep = module_label.relative(":rust.rust_bridge.srcs")
     rust_support_name = name + "_rust_support"
     rust_support_file = name + "_valdi_rust_support.rs"
+    rust_bridge_crate_root_name = name + "_rust_bridge_crate_root"
+    rust_bridge_crate_root_file = rust_bridge_crate_root_name + ".rs"
     rust_static_name = name + "_rust_static"
     rust_kwargs = dict(rust_kwargs)
     rustc_env = dict(rust_kwargs.pop("rustc_env", {}))
@@ -1038,17 +1040,25 @@ def valdi_rust_native_module(
         visibility = ["//visibility:private"],
     )
 
+    native.genrule(
+        name = rust_bridge_crate_root_name,
+        srcs = [generated_bridge_rs_dep],
+        outs = [rust_bridge_crate_root_file],
+        cmd = "cp $< $@",
+        visibility = ["//visibility:private"],
+    )
+
     rustc_env["VALDI_RUST_SUPPORT_PATH"] = "$(execpath :{})".format(rust_support_name)
     rustc_env["VALDI_RUST_USER_ROOT_PATH"] = "$(execpath {})".format(crate_root)
 
     rust_static_library(
         name = rust_static_name,
         srcs = rust_srcs + [
-            generated_bridge_rs_dep,
+            ":" + rust_bridge_crate_root_name,
             ":" + rust_support_name,
         ],
         crate_name = crate_name or name,
-        crate_root = generated_bridge_rs_dep,
+        crate_root = ":" + rust_bridge_crate_root_name,
         compile_data = compile_data + [":" + rust_support_name],
         data = data + [
             ":" + rust_support_name,

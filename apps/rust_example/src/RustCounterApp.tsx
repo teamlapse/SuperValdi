@@ -3,7 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 
-import { count$, formatAsyncCountLabel, formatCountLabel, incrementCount, rustPayloadSize, rustPayloadSummary } from './CounterStore';
+import { count$, formatAsyncCountLabel, formatCountLabel, incrementCount, rustModeLabel, rustPayloadSize, rustPayloadSummary } from './CounterStore';
 
 interface CounterState {
   count: number;
@@ -51,6 +51,7 @@ export class App extends StatefulComponent<ViewModel, CounterState, ComponentCon
         <label style={styles.callbackLabel} value={this.state.callbackLabel} font={systemFont(13)} />
         <label style={styles.promiseLabel} value={this.state.promiseLabel} font={systemFont(13)} />
         <label style={styles.payloadLabel} value={`Model from Rust: ${rustPayloadSummary}`} font={systemFont(13)} />
+        <label style={styles.modeLabel} value={rustModeLabel} font={systemFont(13)} />
         <view style={styles.button} onTap={this.incrementCounter}>
           <label style={styles.buttonLabel} value="Increment in Rust" font={systemBoldFont(17)} />
         </view>
@@ -118,6 +119,11 @@ const styles = {
   }),
 
   payloadLabel: new Style<Label>({
+    color: '#475569',
+    marginBottom: 4,
+  }),
+
+  modeLabel: new Style<Label>({
     color: '#475569',
     marginBottom: 20,
   }),
