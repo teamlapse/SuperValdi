@@ -1,0 +1,13 @@
+load("//bzl/valdi:valdi_rust.bzl", "valdi_rust_cli")
+
+valdi_rust_cli(
+    name = "cli",
+    srcs = ["src/main.rs"],
+    deps = [
+        "//valdi_rust/backend",
+        "//valdi_rust/codegen",
+        "//valdi_rust/ir",
+        "//valdi_rust/runtime",
+    ],
+    visibility = ["//visibility:public"],
+)

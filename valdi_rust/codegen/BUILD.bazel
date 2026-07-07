@@ -1,0 +1,12 @@
+load("//bzl/valdi:valdi_rust.bzl", "valdi_rust_framework_crate")
+
+valdi_rust_framework_crate(
+    name = "codegen",
+    srcs = ["src/lib.rs"],
+    crate_name = "valdi_rust_codegen",
+    deps = [
+        "//valdi_rust/backend",
+        "//valdi_rust/ir",
+    ],
+    visibility = ["//visibility:public"],
+)

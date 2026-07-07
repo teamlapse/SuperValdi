@@ -101,7 +101,7 @@ The stack does not implement IR first. It first creates the production replaceme
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 00 | `codex/rust-supervaldi-00-plan` | plan: Rust-first production migration | [00-plan.md](2026-07-07-rust-first-supervaldi/steps/00-plan.md) | Add the production migration plan and separate step detail files only. | `main` | Docs | Plan PR contains docs only. | In progress |
 | 01 | `codex/rust-supervaldi-01-contract` | feat: add production replacement contract | [01-contract.md](2026-07-07-rust-first-supervaldi/steps/01-contract.md) | Create the authoritative contract consumed by every implementation PR. | PR00 | Docs + test metadata | Contract check passes. | Complete |
-| 02 | `codex/rust-supervaldi-02-bazel-rust-foundation` | build: add Rust framework Bazel foundation | [02-bazel-rust-foundation.md](2026-07-07-rust-first-supervaldi/steps/02-bazel-rust-foundation.md) | Add the Rust workspace and Bazel foundation used by all Rust framework work. | PR01 | Bazel + Rust skeleton | `bazelisk test` passes for the Rust foundation labels. | Planned |
+| 02 | `codex/rust-supervaldi-02-bazel-rust-foundation` | build: add Rust framework Bazel foundation | [02-bazel-rust-foundation.md](2026-07-07-rust-first-supervaldi/steps/02-bazel-rust-foundation.md) | Add the Rust workspace and Bazel foundation used by all Rust framework work. | PR01 | Bazel + Rust skeleton | `bazelisk test` passes for the Rust foundation labels. | Complete |
 | 03 | `codex/rust-supervaldi-03-ir-schema` | feat: add full Rust UI IR schema | [03-ir-schema.md](2026-07-07-rust-first-supervaldi/steps/03-ir-schema.md) | Implement Rust UI IR types for every production surface in the contract. | PR02 | Rust | Schema coverage test proves no contract row lacks a Rust type. | Planned |
 | 04 | `codex/rust-supervaldi-04-fixture-corpus` | test: add complete IR fixture corpus | [04-fixture-corpus.md](2026-07-07-rust-first-supervaldi/steps/04-fixture-corpus.md) | Add fixture coverage for every contract row and parity target. | PR03 | Rust fixtures + test metadata | Fixture coverage test proves every contract row and fixture tag pair has coverage. | Planned |
 | 05 | `codex/rust-supervaldi-05-codec-validator` | feat: add IR codec validator inspector | [05-codec-validator.md](2026-07-07-rust-first-supervaldi/steps/05-codec-validator.md) | Add production and debug encoding plus validation tooling. | PR04 | Rust | Every fixture round-trips through JSON and binary codecs. | Planned |
@@ -180,7 +180,7 @@ The implementation detail for each stack step lives under [steps/](2026-07-07-ru
 | --- | --- | --- | --- |
 | 00 | In progress | Plan PR contains docs only. | Mark PR00 complete after merge. |
 | 01 | Complete | Contract check passes. | Added authoritative YAML contract, generated Markdown, and contract checker. |
-| 02 | Planned | `bazelisk test` passes for the Rust foundation labels. | Mark PR02 complete. |
+| 02 | Complete | `bazelisk test` passes for the Rust foundation labels. | Added Rust crate skeleton, Bazel macro layer, crate graph metadata, and foundation tests. |
 | 03 | Planned | Schema coverage test proves no contract row lacks a Rust type. | Mark PR03 complete. |
 | 04 | Planned | Fixture coverage test proves every contract row and fixture tag pair has coverage. | Mark PR04 complete. |
 | 05 | Planned | Every fixture round-trips through JSON and binary codecs. | Mark PR05 complete. |
@@ -259,3 +259,5 @@ The implementation detail for each stack step lives under [steps/](2026-07-07-ru
 | 01 | Contract source | `docs/rust_migration/replacement_contract.yaml` | Added | Authoritative replacement contract with 22 surface rows |
 | 01 | Generated contract | `docs/rust_migration/replacement_contract.md` | Added | Generated from `replacement_contract.yaml` |
 | 01 | Contract check | `python3 scripts/check_rust_migration_contract.py` | Passed | Validates row IDs, owners, proof gates, fixture tags, platform targets, forbidden dependencies, and generated Markdown |
+| 02 | Rust foundation tests | `bazelisk test //valdi_rust:foundation_tests` | Passed | 14 executable placeholder and metadata tests passed |
+| 02 | Rust crate build | `bazelisk build //valdi_rust/ir:ir //valdi_rust/backend:backend //valdi_rust/runtime:runtime //valdi_rust/codegen:codegen //valdi_rust/cli:cli` | Passed | Existing repo Rust toolchain built all PR02 crate labels |
