@@ -39,6 +39,7 @@ pub fn payload_size(payload: Bytes) -> Double {
 }
 
 pub fn echo_payload(payload: CounterPayload) -> CounterPayload {
-    let retained = payload.retain_for_storage();
-    retained.as_typed_handle()
+    let label = payload.get_label();
+    let value = payload.get_value();
+    CounterPayload::new(format!("{} echoed", label), value + 1.0)
 }

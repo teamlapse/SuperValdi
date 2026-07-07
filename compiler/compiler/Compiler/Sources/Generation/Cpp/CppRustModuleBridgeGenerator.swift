@@ -12,19 +12,28 @@ final class CppRustModuleBridgeGenerator {
     private let cppType: CPPType
     private let exportedModule: ExportedModule
     private let sourceFileName: GeneratedSourceFilename
+    private let generatedModelsByTypeName: [String: ValdiModel]
 
     init(bundleInfo: CompilationItem.BundleInfo,
          cppType: CPPType,
          exportedModule: ExportedModule,
-         sourceFileName: GeneratedSourceFilename) {
+         sourceFileName: GeneratedSourceFilename,
+         generatedModelsByTypeName: [String: ValdiModel] = [:]) {
         self.bundleInfo = bundleInfo
         self.cppType = cppType
         self.exportedModule = exportedModule
         self.sourceFileName = sourceFileName
+        self.generatedModelsByTypeName = generatedModelsByTypeName
     }
 
     private struct CppPropertyName {
         let methodName: String
+    }
+
+    private struct CppModelPropertyName {
+        let getterName: String
+        let setterName: String
+        let constructorParameterName: String
     }
 
     private struct FFIType {
@@ -48,6 +57,12 @@ final class CppRustModuleBridgeGenerator {
         let parameterNames: [String]
         let parameterTypes: [ValdiModelPropertyType]
         let returnType: ValdiModelPropertyType
+    }
+
+    private struct RustModelDefinition {
+        let rustName: String
+        let cppTypeName: String
+        let model: ValdiModel
     }
 
     private enum RustBridgeObservableKind: Equatable {
@@ -110,6 +125,112 @@ final class CppRustModuleBridgeGenerator {
         _ = nameAllocator.allocate(property: "get\(property.name.pascalCased)")
         _ = nameAllocator.allocate(property: "set\(property.name.pascalCased)")
         return CppPropertyName(methodName: nameAllocator.allocate(property: property.name).name)
+    }
+
+    private func resolveModelPropertyNames(model: ValdiModel) -> [String: CppModelPropertyName] {
+        let nameAllocator = PropertyNameAllocator.forCpp()
+        if let cppType = model.cppType {
+            _ = nameAllocator.allocate(property: "\(cppType.declaration.name)Proxy")
+        }
+        ["getRegisteredClass", "registeredClass"].forEach {
+            _ = nameAllocator.allocate(property: $0)
+        }
+
+        var namesByProperty = [String: CppModelPropertyName]()
+        for property in model.properties {
+            _ = nameAllocator.allocate(property: "_\(property.name)")
+            let getterName = nameAllocator.allocate(property: "get\(property.name.pascalCased)").name
+            let setterName = nameAllocator.allocate(property: "set\(property.name.pascalCased)").name
+            let constructorParameterName = nameAllocator.allocate(property: property.name).name
+            namesByProperty[property.name] = CppModelPropertyName(getterName: getterName,
+                                                                  setterName: setterName,
+                                                                  constructorParameterName: constructorParameterName)
+        }
+
+        return namesByProperty
+    }
+
+    private func generatedModel(for mapping: ValdiNodeClassMapping) -> ValdiModel? {
+        guard mapping.isGenerated else {
+            return nil
+        }
+
+        if let fullTypeName = mapping.cppType?.declaration.fullTypeName,
+           let model = generatedModelsByTypeName[fullTypeName] {
+            return model
+        }
+
+        if let typeName = mapping.cppType?.declaration.name,
+           let model = generatedModelsByTypeName[typeName] {
+            return model
+        }
+
+        return generatedModelsByTypeName[mapping.tsType]
+    }
+
+    private func isLocalRustWrapperType(_ type: ValdiModelPropertyType) -> Bool {
+        switch type.unwrappingOptional {
+        case .object, .enum, .genericObject:
+            return !type.isOptional
+        default:
+            return false
+        }
+    }
+
+    private func collectRustGeneratedModelDefinitions(type: ValdiModelPropertyType,
+                                                      definitions: inout [String: RustModelDefinition]) {
+        switch type {
+        case .nullable(let innerType):
+            collectRustGeneratedModelDefinitions(type: innerType, definitions: &definitions)
+        case .array(let elementType):
+            collectRustGeneratedModelDefinitions(type: elementType, definitions: &definitions)
+        case .map(let keyType, let valueType):
+            collectRustGeneratedModelDefinitions(type: keyType, definitions: &definitions)
+            collectRustGeneratedModelDefinitions(type: valueType, definitions: &definitions)
+        case .function(let parameters, let returnType, _, _, _):
+            parameters.forEach { collectRustGeneratedModelDefinitions(type: $0.type, definitions: &definitions) }
+            collectRustGeneratedModelDefinitions(type: returnType, definitions: &definitions)
+        case .object(let mapping), .enum(let mapping):
+            guard let model = generatedModel(for: mapping),
+                  !model.exportAsInterface,
+                  model.typeParameters == nil,
+                  let modelCppType = model.cppType else {
+                return
+            }
+
+            let key = modelCppType.declaration.fullTypeName
+            if definitions[key] == nil {
+                definitions[key] = RustModelDefinition(rustName: rustTypeIdentifier(mapping.tsType),
+                                                       cppTypeName: modelCppType.declaration.resolveTypeName(inNamespace: cppType.declaration.namespace),
+                                                       model: model)
+                model.properties.forEach {
+                    collectRustGeneratedModelDefinitions(type: $0.type, definitions: &definitions)
+                }
+            }
+        case .genericObject(let mapping, let typeArguments):
+            typeArguments.forEach { collectRustGeneratedModelDefinitions(type: $0, definitions: &definitions) }
+            guard let model = generatedModel(for: mapping),
+                  !model.exportAsInterface,
+                  model.typeParameters == nil,
+                  typeArguments.isEmpty,
+                  let modelCppType = model.cppType else {
+                return
+            }
+
+            let key = modelCppType.declaration.fullTypeName
+            if definitions[key] == nil {
+                definitions[key] = RustModelDefinition(rustName: rustTypeIdentifier(mapping.tsType),
+                                                       cppTypeName: modelCppType.declaration.resolveTypeName(inNamespace: cppType.declaration.namespace),
+                                                       model: model)
+                model.properties.forEach {
+                    collectRustGeneratedModelDefinitions(type: $0.type, definitions: &definitions)
+                }
+            }
+        case .promise(let typeArgument):
+            collectRustGeneratedModelDefinitions(type: typeArgument, definitions: &definitions)
+        case .string, .double, .bool, .long, .bytes, .any, .void, .genericTypeParameter:
+            return
+        }
     }
 
     private func rustSymbolName(methodName: String) -> String {
@@ -343,6 +464,9 @@ final class CppRustModuleBridgeGenerator {
         }
 
         if isRustHandleBackedUserType(type) {
+            if isLocalRustWrapperType(type) {
+                return "valdi_rust_module::\(rustUserTypeName(for: type))::from_handle(\(name))"
+            }
             return "valdi_rust::ValdiRustTypedHandle::from_handle(\(name))"
         }
 
@@ -434,16 +558,133 @@ final class CppRustModuleBridgeGenerator {
             if definition.typeParameterCount == 0 {
                 return """
                     pub enum \(markerName) {}
-                    pub type \(definition.name) = crate::valdi_rust::ValdiRustTypedHandle<\(markerName)>;
+
+                    pub struct \(definition.name)(crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)>);
+
+                    unsafe impl Send for \(definition.name) {}
+
+                    impl Clone for \(definition.name) {
+                        fn clone(&self) -> Self {
+                            Self(self.0.clone())
+                        }
+                    }
+
+                    impl \(definition.name) {
+                        pub fn from_handle(handle: crate::valdi_rust::ValdiRustHandle) -> Self {
+                            let typed = crate::valdi_rust::ValdiRustTypedHandle::<\(markerName)>::from_handle(handle);
+                            Self(typed.retain_for_storage())
+                        }
+
+                        pub fn from_owned_handle(handle: crate::valdi_rust::ValdiRustHandle) -> Self {
+                            Self(crate::valdi_rust::ValdiRustRetainedHandle::from_owned_handle(handle))
+                        }
+
+                        pub fn from_retained_handle(handle: &crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)>) -> Self {
+                            Self(handle.clone())
+                        }
+
+                        pub fn as_handle(&self) -> crate::valdi_rust::ValdiRustHandle {
+                            self.0.as_handle()
+                        }
+
+                        pub fn retain_for_storage(&self) -> crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)> {
+                            self.0.clone()
+                        }
+
+                        pub fn into_return_handle(self) -> crate::valdi_rust::ValdiRustHandle {
+                            let handle = self.0.as_handle();
+                            std::mem::forget(self);
+                            handle
+                        }
+                    }
+
+                    impl crate::valdi_rust::ValdiRustPromiseValue for \(definition.name) {
+                        fn resolve_with(resolver: &crate::valdi_rust::ValdiRustPromiseResolver, value: Self) {
+                            (resolver.resolve_handle)(resolver.context, value.into_return_handle());
+                        }
+                    }
+
+                    impl crate::valdi_rust::ValdiRustObservableValue for \(definition.name) {
+                        type Observer = crate::valdi_rust::ValdiRustHandleObservableObserver;
+                    }
+
+                    impl crate::valdi_rust::ValdiRustObserver<\(definition.name)> for crate::valdi_rust::ValdiRustHandleObservableObserver {
+                        fn next(&self, value: \(definition.name)) {
+                            crate::valdi_rust::ValdiRustHandleObservableObserver::next(self, value.into_return_handle());
+                        }
+
+                        fn release(&self) {
+                            crate::valdi_rust::ValdiRustHandleObservableObserver::release(self);
+                        }
+                    }
                     """
             }
 
             let typeParameters = (0..<definition.typeParameterCount).map { "T\($0)" }
             let typeParameterList = typeParameters.joined(separator: ", ")
+            let typeParameterBounds = typeParameters.map { "\($0): Send + 'static" }.joined(separator: ", ")
             let phantomType = typeParameters.count == 1 ? typeParameters[0] : "(\(typeParameterList))"
             return """
                 pub struct \(markerName)<\(typeParameterList)>(std::marker::PhantomData<\(phantomType)>);
-                pub type \(definition.name)<\(typeParameterList)> = crate::valdi_rust::ValdiRustTypedHandle<\(markerName)<\(typeParameterList)>>;
+
+                pub struct \(definition.name)<\(typeParameterList)>(crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)<\(typeParameterList)>>);
+
+                unsafe impl<\(typeParameterList)> Send for \(definition.name)<\(typeParameterList)> {}
+
+                impl<\(typeParameterList)> Clone for \(definition.name)<\(typeParameterList)> {
+                    fn clone(&self) -> Self {
+                        Self(self.0.clone())
+                    }
+                }
+
+                impl<\(typeParameterList)> \(definition.name)<\(typeParameterList)> {
+                    pub fn from_handle(handle: crate::valdi_rust::ValdiRustHandle) -> Self {
+                        let typed = crate::valdi_rust::ValdiRustTypedHandle::<\(markerName)<\(typeParameterList)>>::from_handle(handle);
+                        Self(typed.retain_for_storage())
+                    }
+
+                    pub fn from_owned_handle(handle: crate::valdi_rust::ValdiRustHandle) -> Self {
+                        Self(crate::valdi_rust::ValdiRustRetainedHandle::from_owned_handle(handle))
+                    }
+
+                    pub fn from_retained_handle(handle: &crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)<\(typeParameterList)>>) -> Self {
+                        Self(handle.clone())
+                    }
+
+                    pub fn as_handle(&self) -> crate::valdi_rust::ValdiRustHandle {
+                        self.0.as_handle()
+                    }
+
+                    pub fn retain_for_storage(&self) -> crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)<\(typeParameterList)>> {
+                        self.0.clone()
+                    }
+
+                    pub fn into_return_handle(self) -> crate::valdi_rust::ValdiRustHandle {
+                        let handle = self.0.as_handle();
+                        std::mem::forget(self);
+                        handle
+                    }
+                }
+
+                impl<\(typeParameterBounds)> crate::valdi_rust::ValdiRustPromiseValue for \(definition.name)<\(typeParameterList)> {
+                    fn resolve_with(resolver: &crate::valdi_rust::ValdiRustPromiseResolver, value: Self) {
+                        (resolver.resolve_handle)(resolver.context, value.into_return_handle());
+                    }
+                }
+
+                impl<\(typeParameterBounds)> crate::valdi_rust::ValdiRustObservableValue for \(definition.name)<\(typeParameterList)> {
+                    type Observer = crate::valdi_rust::ValdiRustHandleObservableObserver;
+                }
+
+                impl<\(typeParameterBounds)> crate::valdi_rust::ValdiRustObserver<\(definition.name)<\(typeParameterList)>> for crate::valdi_rust::ValdiRustHandleObservableObserver {
+                    fn next(&self, value: \(definition.name)<\(typeParameterList)>) {
+                        crate::valdi_rust::ValdiRustHandleObservableObserver::next(self, value.into_return_handle());
+                    }
+
+                    fn release(&self) {
+                        crate::valdi_rust::ValdiRustHandleObservableObserver::release(self);
+                    }
+                }
                 """
         }.joined(separator: "\n\n")
     }
@@ -694,21 +935,24 @@ final class CppRustModuleBridgeGenerator {
             return resultName
         case .string:
             if returnType.isOptional {
-                return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+                return "\(rustUserTypeName(for: returnType))::from_handle(\(resultName))"
             }
             return "\(resultName).into_string()"
         case .bytes:
             if returnType.isOptional {
-                return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+                return "\(rustUserTypeName(for: returnType))::from_handle(\(resultName))"
             }
             return "\(resultName).into_vec()"
         case .double, .bool, .long:
             if returnType.isOptional {
-                return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+                return "\(rustUserTypeName(for: returnType))::from_handle(\(resultName))"
             }
             return resultName
         default:
-            return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+            if isLocalRustWrapperType(returnType) {
+                return "\(rustUserTypeName(for: returnType))::from_owned_handle(\(resultName))"
+            }
+            return "\(rustUserTypeName(for: returnType))::from_handle(\(resultName))"
         }
     }
 
@@ -814,6 +1058,216 @@ final class CppRustModuleBridgeGenerator {
             }
 
         """
+    }
+
+    private func moduleScopedABIType(_ type: String) -> String {
+        return type.replacingOccurrences(of: "valdi_rust::", with: "crate::valdi_rust::")
+    }
+
+    private func rustTempIdentifier(base: String, suffix: String) -> String {
+        return base.replacingOccurrences(of: "r#", with: "") + suffix
+    }
+
+    private func rustModelCallArgument(type: ValdiModelPropertyType,
+                                       name: String) -> (prelude: String, expression: String) {
+        switch type.unwrappingOptional {
+        case .string:
+            if type.isOptional {
+                return ("", "\(name).as_handle()")
+            }
+            let viewName = rustTempIdentifier(base: name, suffix: "_view")
+            return ("let \(viewName) = crate::valdi_rust::ValdiRustStringView::from_str(&\(name));", viewName)
+        case .bytes:
+            if type.isOptional {
+                return ("", "\(name).as_handle()")
+            }
+            let viewName = rustTempIdentifier(base: name, suffix: "_view")
+            return ("let \(viewName) = crate::valdi_rust::ValdiRustBytesView::from_slice(&\(name));", viewName)
+        case .double, .bool, .long:
+            if type.isOptional {
+                return ("", "\(name).as_handle()")
+            }
+            return ("", name)
+        case .promise:
+            return ("", "\(name).as_handle().expect(\"Only incoming Valdi promise handles can be stored in generated Rust model helpers\")")
+        default:
+            return ("", "\(name).as_handle()")
+        }
+    }
+
+    private func rustModelReturnExpression(type: ValdiModelPropertyType,
+                                           resultName: String) -> String {
+        switch type.unwrappingOptional {
+        case .string:
+            if type.isOptional {
+                return "\(rustUserTypeName(for: type))::from_handle(\(resultName))"
+            }
+            return "\(resultName).into_string()"
+        case .bytes:
+            if type.isOptional {
+                return "\(rustUserTypeName(for: type))::from_handle(\(resultName))"
+            }
+            return "\(resultName).into_vec()"
+        case .double, .bool, .long:
+            if type.isOptional {
+                return "\(rustUserTypeName(for: type))::from_handle(\(resultName))"
+            }
+            return resultName
+        case .promise:
+            return "\(rustUserTypeName(for: type))::from_handle(\(resultName))"
+        default:
+            if isLocalRustWrapperType(type) {
+                return "\(rustUserTypeName(for: type))::from_owned_handle(\(resultName))"
+            }
+            return "\(rustUserTypeName(for: type))::from_handle(\(resultName))"
+        }
+    }
+
+    private func rustModelConstructorSymbolName(definition: RustModelDefinition) -> String {
+        return rustSymbolName(methodName: "\(definition.rustName)_new")
+    }
+
+    private func rustModelGetterSymbolName(definition: RustModelDefinition, property: ValdiModelProperty) -> String {
+        return rustSymbolName(methodName: "\(definition.rustName)_get_\(property.name)")
+    }
+
+    private func rustModelSetterSymbolName(definition: RustModelDefinition, property: ValdiModelProperty) -> String {
+        return rustSymbolName(methodName: "\(definition.rustName)_set_\(property.name)")
+    }
+
+    private func rustModelHelperRustSource(definition: RustModelDefinition) throws -> String {
+        let constructorSymbol = rustModelConstructorSymbolName(definition: definition)
+        let constructorParameterNames = definition.model.properties.map { rustIdentifier($0.name) }
+        let constructorParameterDeclarations = zip(definition.model.properties, constructorParameterNames).map {
+            "\($0.1): \(rustUserTypeName(for: $0.0.type))"
+        }.joined(separator: ", ")
+        let constructorExternParameters = zip(definition.model.properties, constructorParameterNames).map {
+            "\($0.1): \(moduleScopedABIType(rustFFIParameterType(for: $0.0.type)))"
+        }.joined(separator: ", ")
+        let constructorArguments = zip(definition.model.properties, constructorParameterNames).map {
+            rustModelCallArgument(type: $0.0.type, name: $0.1)
+        }
+        let constructorPrelude = constructorArguments.map { $0.prelude }
+            .filter { !$0.isEmpty }
+            .map { "        \($0)" }
+            .joined(separator: "\n")
+        let constructorCallArguments = constructorArguments.map { $0.expression }.joined(separator: ", ")
+
+        var externDeclarations = "fn \(constructorSymbol)(\(constructorExternParameters)) -> crate::valdi_rust::ValdiRustHandle;\n"
+        var methods = """
+                pub fn new(\(constructorParameterDeclarations)) -> Self {
+            \(constructorPrelude)
+                    let handle = unsafe { \(constructorSymbol)(\(constructorCallArguments)) };
+                    Self::from_owned_handle(handle)
+                }
+
+            """
+
+        for property in definition.model.properties {
+            let getterSymbol = rustModelGetterSymbolName(definition: definition, property: property)
+            let setterSymbol = rustModelSetterSymbolName(definition: definition, property: property)
+            let getterReturnType = rustFFIReturnType(for: property.type) ?? "crate::valdi_rust::ValdiRustHandle"
+            let setterParameterType = moduleScopedABIType(rustFFIParameterType(for: property.type))
+            let rustPropertyName = rustIdentifier(property.name)
+            let getterName = "get_\(rustPropertyName)"
+            let setterName = "set_\(rustPropertyName)"
+            let setterArgument = rustModelCallArgument(type: property.type, name: "value")
+            let setterPrelude = setterArgument.prelude.isEmpty ? "" : "        \(setterArgument.prelude)\n"
+            let rustReturnType = rustUserTypeName(for: property.type)
+
+            externDeclarations += "fn \(getterSymbol)(value: crate::valdi_rust::ValdiRustHandle) -> \(moduleScopedABIType(getterReturnType));\n"
+            externDeclarations += "fn \(setterSymbol)(value: crate::valdi_rust::ValdiRustHandle, field: \(setterParameterType));\n"
+
+            methods += """
+                pub fn \(getterName)(&self) -> \(rustReturnType) {
+                    let result = unsafe { \(getterSymbol)(self.as_handle()) };
+                    \(rustModelReturnExpression(type: property.type, resultName: "result"))
+                }
+
+                pub fn \(setterName)(&mut self, value: \(rustReturnType)) {
+            \(setterPrelude)        unsafe { \(setterSymbol)(self.as_handle(), \(setterArgument.expression)); }
+                }
+
+            """
+        }
+
+        return """
+
+            unsafe extern "C" {
+            \(externDeclarations.indented)
+            }
+
+            impl \(definition.rustName) {
+            \(methods.indented)
+            }
+
+        """
+    }
+
+    private func rustModelHelperThunkSource(definition: RustModelDefinition,
+                                            typeGenerator: CppCodeGenerator) throws -> String {
+        let namesByProperty = resolveModelPropertyNames(model: definition.model)
+        let constructorSymbol = rustModelConstructorSymbolName(definition: definition)
+        let constructorParameters = try definition.model.properties.map { property -> (ValdiModelProperty, CppModelPropertyName, String) in
+            guard let propertyName = namesByProperty[property.name] else {
+                throw CompilerError("Could not resolve generated C++ model property name for \(definition.model.tsType).\(property.name)")
+            }
+
+            let propertyTypeName = try typeGenerator.getTypeParser(type: property.type,
+                                                                    namePaths: [definition.model.tsType, property.name],
+                                                                    nameAllocator: PropertyNameAllocator.forCpp().scoped()).typeNameResolver.resolve(cppType.declaration.namespace)
+            return (property, propertyName, propertyTypeName)
+        }
+        let constructorParameterDeclarations = constructorParameters.map {
+            "\(ffiType(for: $0.0.type).name) \($0.1.constructorParameterName)"
+        }.joined(separator: ", ")
+        let constructorArguments = constructorParameters.map {
+            callbackCallArgumentExpression(type: $0.0.type,
+                                           cppTypeName: $0.2,
+                                           name: $0.1.constructorParameterName)
+        }
+        let constructorPrelude = constructorArguments.map { $0.prelude }
+            .filter { !$0.isEmpty }
+            .map { $0.indented }
+            .joined(separator: "\n")
+        let constructorCallArguments = constructorArguments.map { $0.expression }.joined(separator: ", ")
+
+        var source = """
+
+            extern "C" ValdiRustHandle \(constructorSymbol)(\(constructorParameterDeclarations)) {
+            \(constructorPrelude)
+                return valdiRustBridgeRetainBoxedValue<\(definition.cppTypeName)>(\(definition.cppTypeName)(\(constructorCallArguments)));
+            }
+
+        """
+
+        for (property, propertyName, propertyTypeName) in constructorParameters {
+            let getterSymbol = rustModelGetterSymbolName(definition: definition, property: property)
+            let setterSymbol = rustModelSetterSymbolName(definition: definition, property: property)
+            let getterReturnType = ffiReturnType(for: property.type).name
+            let setterParameterType = ffiType(for: property.type).name
+            let setterArgument = callbackCallArgumentExpression(type: property.type,
+                                                                cppTypeName: propertyTypeName,
+                                                                name: "field")
+            let setterPrelude = setterArgument.prelude.isEmpty ? "" : "\(setterArgument.prelude.indented)\n"
+
+            source += """
+                extern "C" \(getterReturnType) \(getterSymbol)(ValdiRustHandle value) {
+                    auto *modelBox = Valdi::unsafeBridgeUnretained<ValdiRustBridgeBox<\(definition.cppTypeName)>>(value.ptr);
+                    \(callbackReturnStatement(returnType: property.type,
+                                               cppTypeName: propertyTypeName,
+                                               callExpression: "modelBox->value.\(propertyName.getterName)()").indented)
+                }
+
+                extern "C" void \(setterSymbol)(ValdiRustHandle value, \(setterParameterType) field) {
+                    auto *modelBox = Valdi::unsafeBridgeUnretained<ValdiRustBridgeBox<\(definition.cppTypeName)>>(value.ptr);
+            \(setterPrelude)        modelBox->value.\(propertyName.setterName)(\(setterArgument.expression));
+                }
+
+            """
+        }
+
+        return source
     }
 
     private func writeCommonRuntime(to writer: CodeWriter) {
@@ -1302,13 +1756,18 @@ final class CppRustModuleBridgeGenerator {
         var rustAdapterFunctions = ""
         var callbackThunks = ""
         var rustCallbackWrappers = ""
+        var modelHelperThunks = ""
+        var rustModelHelpers = ""
         var rustHandleTypeDefinitions = Set<RustHandleTypeDefinition>()
+        var rustGeneratedModelDefinitions = [String: RustModelDefinition]()
 
         for property in exportedModule.model.properties {
             switch property.type {
             case .function(let parameters, let returnType, _, _, _):
                 parameters.forEach { collectRustHandleTypeDefinitions(type: $0.type, definitions: &rustHandleTypeDefinitions) }
                 collectRustHandleTypeDefinitions(type: returnType, definitions: &rustHandleTypeDefinitions)
+                parameters.forEach { collectRustGeneratedModelDefinitions(type: $0.type, definitions: &rustGeneratedModelDefinitions) }
+                collectRustGeneratedModelDefinitions(type: returnType, definitions: &rustGeneratedModelDefinitions)
 
                 let methodTypeParser = try typeGenerator.getTypeParser(type: property.type, namePaths: [property.name], nameAllocator: nameAllocator)
                 let propertyName = resolvePropertyName(property: property, nameAllocator: nameAllocator)
@@ -1469,6 +1928,7 @@ final class CppRustModuleBridgeGenerator {
                 """
             default:
                 collectRustHandleTypeDefinitions(type: property.type, definitions: &rustHandleTypeDefinitions)
+                collectRustGeneratedModelDefinitions(type: property.type, definitions: &rustGeneratedModelDefinitions)
 
                 try validateRustBoundaryType(property.type, context: "exported module property '\(property.name)'")
 
@@ -1522,7 +1982,14 @@ final class CppRustModuleBridgeGenerator {
             }
         }
 
+        for definition in rustGeneratedModelDefinitions.values.sorted(by: { $0.rustName < $1.rustName }) {
+            modelHelperThunks += try rustModelHelperThunkSource(definition: definition, typeGenerator: typeGenerator)
+            rustModelHelpers += try rustModelHelperRustSource(definition: definition)
+        }
+
         generator.body.appendBody("""
+            \(modelHelperThunks)
+
             \(callbackThunks)
 
             extern "C" {
@@ -1559,13 +2026,14 @@ final class CppRustModuleBridgeGenerator {
                          filename: "\(bundleInfo.name).rust_bridge.rs",
                          file: .data(try rustAdapterSource(typeDefinitions: rustHandleTypeDefinitionsSource(definitions: rustHandleTypeDefinitions),
                                                            callbackWrappers: rustCallbackWrappers,
+                                                           modelHelpers: rustModelHelpers,
                                                            functions: rustAdapterFunctions).utf8Data()),
                          groupingIdentifier: "\(bundleInfo.name).rust_bridge.rs",
                          groupingPriority: 0)
         ]
     }
 
-    private func rustAdapterSource(typeDefinitions: String, callbackWrappers: String, functions: String) -> String {
+    private func rustAdapterSource(typeDefinitions: String, callbackWrappers: String, modelHelpers: String, functions: String) -> String {
         return """
             // Generated Rust adapter for \(cppType.declaration.fullTypeName).
             // Rust symbols are derived from the @ExportModule TypeScript declaration.
@@ -1582,6 +2050,7 @@ final class CppRustModuleBridgeGenerator {
 
             \(typeDefinitions)
             \(callbackWrappers)
+            \(modelHelpers)
 
                 include!(env!("VALDI_RUST_USER_ROOT_PATH"));
             }

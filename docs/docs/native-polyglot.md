@@ -335,12 +335,17 @@ is authored in Rust using the generated `CounterPayload` type, not a raw ABI han
 
 ```rust
 pub fn echo_payload(payload: CounterPayload) -> CounterPayload {
-    let retained = payload.retain_for_storage();
-    retained.as_typed_handle()
+    let label = payload.get_label();
+    let value = payload.get_value();
+    CounterPayload::new(format!("{} echoed", label), value + 1.0)
 }
 ```
 
-The wrapper preserves the same native value across the boundary and exposes borrowed handle access plus `retain_for_storage()` for lifetime-sensitive storage. Return values are converted through generated adapter code that retains the native handle before C++ consumes it. Rich Rust property/method helpers for generated models are still a later parity step.
+The wrapper preserves native ownership across the boundary and exposes `new()`,
+`get_<field>()`, `set_<field>()`, borrowed handle access, and
+`retain_for_storage()` for lifetime-sensitive storage. Return values are
+converted through generated adapter code that transfers the native handle back
+to C++.
 
 For example, TypeScript declarations using strings and bytes:
 

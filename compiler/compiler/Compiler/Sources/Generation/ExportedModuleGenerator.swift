@@ -3,9 +3,13 @@
 final class ExportedModuleGenerator: NativeSourceGenerator {
 
     private let exportedModule: ExportedModule
+    private let rustGeneratedModelsByTypeName: [String: ValdiModel]
 
-    init(bundleInfo: CompilationItem.BundleInfo, exportedModule: ExportedModule) {
+    init(bundleInfo: CompilationItem.BundleInfo,
+         exportedModule: ExportedModule,
+         rustGeneratedModelsByTypeName: [String: ValdiModel] = [:]) {
         self.exportedModule = exportedModule
+        self.rustGeneratedModelsByTypeName = rustGeneratedModelsByTypeName
     }
 
     func generateSwiftSources(parameters: NativeSourceParameters, type: IOSType) throws -> [NativeSource] {
@@ -36,7 +40,8 @@ final class ExportedModuleGenerator: NativeSourceGenerator {
                                               cppType: cppType,
                                               exportedModule: exportedModule,
                                               classMapping: parameters.classMapping,
-                                              sourceFileName: parameters.sourceFileName)
+                                              sourceFileName: parameters.sourceFileName,
+                                              rustGeneratedModelsByTypeName: rustGeneratedModelsByTypeName)
         return try cppGenerator.write()
     }
 }

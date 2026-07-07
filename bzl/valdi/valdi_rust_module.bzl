@@ -254,6 +254,13 @@ impl<T> Drop for ValdiRustRetainedHandle<T> {
 }
 
 impl<T> ValdiRustRetainedHandle<T> {
+    pub fn from_owned_handle(handle: ValdiRustHandle) -> Self {
+        Self {
+            handle,
+            marker: PhantomData,
+        }
+    }
+
     pub fn as_typed_handle(&self) -> ValdiRustTypedHandle<T> {
         ValdiRustTypedHandle::from_handle(self.handle)
     }

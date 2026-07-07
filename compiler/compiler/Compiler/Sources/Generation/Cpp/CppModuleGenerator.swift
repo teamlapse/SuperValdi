@@ -12,17 +12,20 @@ final class CppModuleGenerator {
     private let exportedModule: ExportedModule
     private let classMapping: ResolvedClassMapping
     private let sourceFileName: GeneratedSourceFilename
+    private let rustGeneratedModelsByTypeName: [String: ValdiModel]
 
     init(bundleInfo: CompilationItem.BundleInfo,
          cppType: CPPType,
          exportedModule: ExportedModule,
          classMapping: ResolvedClassMapping,
-         sourceFileName: GeneratedSourceFilename) {
+         sourceFileName: GeneratedSourceFilename,
+         rustGeneratedModelsByTypeName: [String: ValdiModel] = [:]) {
         self.bundleInfo = bundleInfo
         self.cppType = cppType
         self.exportedModule = exportedModule
         self.classMapping = classMapping
         self.sourceFileName = sourceFileName
+        self.rustGeneratedModelsByTypeName = rustGeneratedModelsByTypeName
     }
 
     func write() throws -> [NativeSource] {
@@ -103,7 +106,8 @@ final class CppModuleGenerator {
             let rustBridgeGenerator = CppRustModuleBridgeGenerator(bundleInfo: bundleInfo,
                                                                    cppType: cppType,
                                                                    exportedModule: exportedModule,
-                                                                   sourceFileName: sourceFileName)
+                                                                   sourceFileName: sourceFileName,
+                                                                   generatedModelsByTypeName: rustGeneratedModelsByTypeName)
             output += try rustBridgeGenerator.write()
         }
 

@@ -24,7 +24,10 @@ through a generated Rust callback wrapper. The Rust side uses the generated
 observer storage or unsubscribe bookkeeping. The app also renders a
 `Promise<string>` returned from Rust via `Promise::resolved(...)`. It includes
 string and bytes functions implemented as normal Rust `String` and `Bytes`
-signatures, with ABI conversion generated around the user code.
+signatures, with ABI conversion generated around the user code. The
+`CounterPayload` model is also generated as a Rust wrapper with `new()`,
+`get_label()`, and `get_value()` helpers; the app sends a TypeScript object into
+Rust and displays the model Rust returns.
 
 Build the iOS or Android app with:
 
