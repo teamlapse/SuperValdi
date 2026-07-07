@@ -2,6 +2,8 @@
 
 Branch: `codex/rust-supervaldi-01-contract`
 
+Status: Complete
+
 Purpose: Create the authoritative contract consumed by every implementation PR.
 
 Depends on: PR00
@@ -23,6 +25,7 @@ Proof:
 - Generated contract names implementation PRs and proof PRs for every row.
 - Generated contract contains every row listed in the plan coverage summary.
 - Plan PR files outside docs/test metadata are unchanged.
+- `python3 scripts/check_rust_migration_contract.py` validates the generated Markdown against the YAML source.
 
 Plan update:
 - Mark PR01 complete.
