@@ -3,10 +3,12 @@ import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 
-import { count$, formatCountLabel, incrementCount, rustPayloadSize } from './CounterStore';
+import { count$, formatAsyncCountLabel, formatCountLabel, incrementCount, rustPayloadSize } from './CounterStore';
 
 interface CounterState {
   count: number;
+  callbackLabel: string;
+  promiseLabel: string;
 }
 
 /**
@@ -28,6 +30,8 @@ export interface ComponentContext {}
 export class App extends StatefulComponent<ViewModel, CounterState, ComponentContext> {
   state: CounterState = {
     count: 0,
+    callbackLabel: formatCountLabel(0),
+    promiseLabel: 'Async Rust count: 0',
   };
 
   onCreate(): void {
@@ -44,6 +48,8 @@ export class App extends StatefulComponent<ViewModel, CounterState, ComponentCon
         <label style={styles.eyebrow} value="Rust native module" font={systemBoldFont(13)} />
         <label style={styles.count} value={`${this.state.count}`} font={systemBoldFont(64)} />
         <label style={styles.countLabel} value={formatCountLabel(this.state.count)} font={systemFont(15)} />
+        <label style={styles.callbackLabel} value={this.state.callbackLabel} font={systemFont(13)} />
+        <label style={styles.promiseLabel} value={this.state.promiseLabel} font={systemFont(13)} />
         <view style={styles.button} onTap={this.incrementCounter}>
           <label style={styles.buttonLabel} value="Increment in Rust" font={systemBoldFont(17)} />
         </view>
@@ -57,7 +63,11 @@ export class App extends StatefulComponent<ViewModel, CounterState, ComponentCon
   }
 
   private readonly incrementCounter = (): void => {
-    incrementCount();
+    const nextCount = this.state.count + 1;
+    this.setState({ callbackLabel: incrementCount(), promiseLabel: 'Resolving in Rust...' });
+    formatAsyncCountLabel(nextCount).then(promiseLabel => {
+      this.setState({ promiseLabel });
+    });
   };
 }
 
@@ -93,6 +103,16 @@ const styles = {
 
   countLabel: new Style<Label>({
     color: '#38506b',
+    marginBottom: 6,
+  }),
+
+  callbackLabel: new Style<Label>({
+    color: '#0f766e',
+    marginBottom: 4,
+  }),
+
+  promiseLabel: new Style<Label>({
+    color: '#334155',
     marginBottom: 20,
   }),
 

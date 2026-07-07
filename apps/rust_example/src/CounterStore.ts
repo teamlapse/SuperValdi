@@ -1,15 +1,18 @@
-import { convertBridgeObservableToObservable } from 'bridge_observables/src/utils/convertBridgeObservableToObservable';
 import { Observable } from 'valdi_rxjs/src/Observable';
 
-import { count, formatCount, increment, labelBytes, payloadSize } from './RustCounter';
+import { count, describeAfterIncrement, formatCount, formatCountAsync, labelBytes, payloadSize } from './RustCounter';
 
-export const count$: Observable<number> = convertBridgeObservableToObservable(count());
+export const count$: Observable<number> = count();
 export const rustPayloadSize: number = payloadSize(labelBytes('rust'));
 
-export function incrementCount(): void {
-  increment();
+export function incrementCount(): string {
+  return describeAfterIncrement(value => formatCountLabel(value));
 }
 
 export function formatCountLabel(count: number): string {
   return formatCount('Rust count', count);
+}
+
+export function formatAsyncCountLabel(count: number): Promise<string> {
+  return formatCountAsync(count);
 }

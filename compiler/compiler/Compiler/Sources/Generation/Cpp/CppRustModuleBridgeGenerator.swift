@@ -42,6 +42,14 @@ final class CppRustModuleBridgeGenerator {
         let typeParameterCount: Int
     }
 
+    private struct RustCallbackDefinition {
+        let wrapperName: String
+        let symbolName: String
+        let parameterNames: [String]
+        let parameterTypes: [ValdiModelPropertyType]
+        let returnType: ValdiModelPropertyType
+    }
+
     private enum RustBridgeObservableKind: Equatable {
         case double
         case bool
@@ -135,6 +143,14 @@ final class CppRustModuleBridgeGenerator {
         return rustIdentifier(methodName)
     }
 
+    private func rustCallbackWrapperName(methodName: String, parameterName: String) -> String {
+        return rustTypeIdentifier("\(methodName)_\(parameterName)_callback")
+    }
+
+    private func rustCallbackSymbolName(methodName: String, parameterName: String) -> String {
+        return "\(rustSymbolName(methodName: methodName))_\(parameterName.snakeCased)_call"
+    }
+
     private func validateRustBoundaryMapping(_ mapping: ValdiNodeClassMapping, context: String) throws {
         if mapping.isGenerated || mapping.marshallAsUntyped || mapping.converter != nil {
             return
@@ -187,6 +203,26 @@ final class CppRustModuleBridgeGenerator {
         }
     }
 
+    private func isBridgeObservableMapping(_ mapping: ValdiNodeClassMapping) -> Bool {
+        if mapping.tsType == "BridgeObservable" {
+            return true
+        }
+
+        return mapping.cppType?.declaration.name == "BridgeObservable"
+    }
+
+    private func isPromiseType(_ type: ValdiModelPropertyType) -> Bool {
+        guard !type.isOptional else {
+            return false
+        }
+
+        if case .promise = type.unwrappingOptional {
+            return true
+        }
+
+        return false
+    }
+
     private func bridgeObservableReturn(for type: ValdiModelPropertyType, context: String) throws -> RustBridgeObservableKind? {
         guard !type.isOptional else {
             return nil
@@ -194,7 +230,7 @@ final class CppRustModuleBridgeGenerator {
 
         switch type.unwrappingOptional {
         case .genericObject(let mapping, let typeArguments):
-            guard mapping.tsType == "BridgeObservable", typeArguments.count == 1 else {
+            guard isBridgeObservableMapping(mapping), typeArguments.count == 1 else {
                 return nil
             }
 
@@ -295,7 +331,17 @@ final class CppRustModuleBridgeGenerator {
         }
     }
 
-    private func rustUserArgumentExpression(type: ValdiModelPropertyType, name: String) -> String {
+    private func rustUserArgumentExpression(type: ValdiModelPropertyType,
+                                            name: String,
+                                            callbackWrapperName: String? = nil) -> String {
+        if case .function = type.unwrappingOptional, let callbackWrapperName {
+            return "valdi_rust_module::\(callbackWrapperName)::from_handle(\(name))"
+        }
+
+        if case .promise = type.unwrappingOptional {
+            return "valdi_rust::Promise::from_handle(\(name))"
+        }
+
         if isRustHandleBackedUserType(type) {
             return "valdi_rust::ValdiRustTypedHandle::from_handle(\(name))"
         }
@@ -315,6 +361,10 @@ final class CppRustModuleBridgeGenerator {
     }
 
     private func rustUserReturnExpression(returnType: ValdiModelPropertyType, callExpression: String) -> String {
+        if isPromiseType(returnType) {
+            return "\(callExpression).into_ffi()"
+        }
+
         if isRustHandleBackedUserType(returnType) {
             return "\(callExpression).into_return_handle()"
         }
@@ -354,6 +404,11 @@ final class CppRustModuleBridgeGenerator {
                 definitions.insert(RustHandleTypeDefinition(name: typeName, typeParameterCount: 0))
             }
         case .genericObject(let mapping, let typeArguments):
+            if isBridgeObservableMapping(mapping) {
+                typeArguments.forEach { collectRustHandleTypeDefinitions(type: $0, definitions: &definitions) }
+                return
+            }
+
             let typeName = rustTypeIdentifier(mapping.tsType)
             if !typeName.isEmpty {
                 definitions.insert(RustHandleTypeDefinition(name: typeName, typeParameterCount: typeArguments.count))
@@ -397,6 +452,8 @@ final class CppRustModuleBridgeGenerator {
         switch type.unwrappingOptional {
         case .void:
             return nil
+        case .promise:
+            return "valdi_rust::ValdiRustPromise"
         case .string:
             return type.isOptional ? "valdi_rust::ValdiRustHandle" : "valdi_rust::ValdiRustOwnedString"
         case .bytes:
@@ -431,6 +488,8 @@ final class CppRustModuleBridgeGenerator {
 
     private func ffiReturnType(for type: ValdiModelPropertyType) -> FFIType {
         switch type.unwrappingOptional {
+        case .promise:
+            return FFIType(name: "ValdiRustPromise")
         case .string:
             return FFIType(name: type.isOptional ? "ValdiRustHandle" : "ValdiRustOwnedString")
         case .bytes:
@@ -512,6 +571,251 @@ final class CppRustModuleBridgeGenerator {
         }
     }
 
+    private func callbackCallArgumentExpression(type: ValdiModelPropertyType,
+                                                cppTypeName: String,
+                                                name: String) -> (prelude: String, expression: String) {
+        switch type.unwrappingOptional {
+        case .double, .bool, .long:
+            if type.isOptional {
+                return ("", "valdiRustBridgeCopyBoxedValue<\(cppTypeName)>(\(name))")
+            }
+            return ("", name)
+        case .string:
+            if type.isOptional {
+                return ("", "valdiRustBridgeCopyBoxedValue<\(cppTypeName)>(\(name))")
+            }
+            return ("", "valdiRustStringViewToStringBox(\(name))")
+        case .bytes:
+            if type.isOptional {
+                return ("", "valdiRustBridgeCopyBoxedValue<\(cppTypeName)>(\(name))")
+            }
+            return ("", "valdiRustBytesViewToBytesView(\(name))")
+        default:
+            return ("", "valdiRustBridgeCopyBoxedValue<\(cppTypeName)>(\(name))")
+        }
+    }
+
+    private func callbackReturnStatement(returnType: ValdiModelPropertyType,
+                                         cppTypeName: String,
+                                         callExpression: String) -> String {
+        switch returnType.unwrappingOptional {
+        case .void:
+            return "\(callExpression);\n"
+        case .double, .bool, .long:
+            if returnType.isOptional {
+                return "return valdiRustBridgeRetainBoxedValue<\(cppTypeName)>(\(callExpression));\n"
+            }
+            return "return \(callExpression);\n"
+        case .string:
+            if returnType.isOptional {
+                return "return valdiRustBridgeRetainBoxedValue<\(cppTypeName)>(\(callExpression));\n"
+            }
+            return "return valdiRustStringBoxToOwnedString(\(callExpression));\n"
+        case .bytes:
+            if returnType.isOptional {
+                return "return valdiRustBridgeRetainBoxedValue<\(cppTypeName)>(\(callExpression));\n"
+            }
+            return "return valdiRustBytesViewToOwnedBytes(\(callExpression));\n"
+        default:
+            return "return valdiRustBridgeRetainBoxedValue<\(cppTypeName)>(\(callExpression));\n"
+        }
+    }
+
+    private func promiseResolverConfiguration(valueType: ValdiModelPropertyType,
+                                              valueCppTypeName: String) -> String {
+        if valueType.isOptional {
+            return "resolver.resolveHandle = valdiRustPromiseResolveHandle<\(valueCppTypeName)>;"
+        }
+
+        switch valueType.unwrappingOptional {
+        case .double:
+            return "resolver.resolveDouble = valdiRustPromiseResolveDouble<\(valueCppTypeName)>;"
+        case .bool:
+            return "resolver.resolveBool = valdiRustPromiseResolveBool<\(valueCppTypeName)>;"
+        case .long:
+            return "resolver.resolveLong = valdiRustPromiseResolveLong<\(valueCppTypeName)>;"
+        case .string:
+            return "resolver.resolveString = valdiRustPromiseResolveString<\(valueCppTypeName)>;"
+        case .bytes:
+            return "resolver.resolveBytes = valdiRustPromiseResolveBytes<\(valueCppTypeName)>;"
+        case .void:
+            return "resolver.resolveVoid = valdiRustPromiseResolveVoid;"
+        default:
+            return "resolver.resolveHandle = valdiRustPromiseResolveHandle<\(valueCppTypeName)>;"
+        }
+    }
+
+    private func promiseReturnStatement(returnType: ValdiModelPropertyType,
+                                        valueCppTypeName: String,
+                                        callExpression: String) -> String? {
+        guard case .promise(let valueType) = returnType.unwrappingOptional else {
+            return nil
+        }
+
+        let configuration = promiseResolverConfiguration(valueType: valueType, valueCppTypeName: valueCppTypeName)
+        return """
+            auto rustPromise = \(callExpression);
+            return valdiRustMakePromiseFuture<\(valueCppTypeName)>(rustPromise, [](auto &resolver) {
+                \(configuration)
+            });
+
+            """
+    }
+
+    private func rustCallbackCallArgument(type: ValdiModelPropertyType,
+                                          name: String) -> (prelude: String, expression: String) {
+        switch type.unwrappingOptional {
+        case .string:
+            if type.isOptional {
+                return ("", "\(name).as_handle()")
+            }
+            let viewName = "\(name)_view"
+            return ("let \(viewName) = crate::valdi_rust::ValdiRustStringView::from_str(&\(name));", viewName)
+        case .bytes:
+            if type.isOptional {
+                return ("", "\(name).as_handle()")
+            }
+            let viewName = "\(name)_view"
+            return ("let \(viewName) = crate::valdi_rust::ValdiRustBytesView::from_slice(&\(name));", viewName)
+        case .double, .bool, .long:
+            if type.isOptional {
+                return ("", "\(name).as_handle()")
+            }
+            return ("", name)
+        default:
+            return ("", "\(name).as_handle()")
+        }
+    }
+
+    private func rustCallbackReturnExpression(returnType: ValdiModelPropertyType,
+                                              resultName: String) -> String {
+        switch returnType.unwrappingOptional {
+        case .void:
+            return resultName
+        case .string:
+            if returnType.isOptional {
+                return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+            }
+            return "\(resultName).into_string()"
+        case .bytes:
+            if returnType.isOptional {
+                return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+            }
+            return "\(resultName).into_vec()"
+        case .double, .bool, .long:
+            if returnType.isOptional {
+                return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+            }
+            return resultName
+        default:
+            return "crate::valdi_rust::ValdiRustTypedHandle::from_handle(\(resultName))"
+        }
+    }
+
+    private func callbackThunkSource(definition: RustCallbackDefinition,
+                                     callbackCppTypeName: String,
+                                     parameterCppTypeNames: [String],
+                                     returnCppTypeName: String) -> String {
+        let ffiParameters = zip(definition.parameterTypes, definition.parameterNames).map {
+            "\(ffiType(for: $0.0).name) \($0.1)"
+        }.joined(separator: ", ")
+        let parameterDeclarationSuffix = ffiParameters.isEmpty ? "" : ", \(ffiParameters)"
+        let callbackArguments = zip(definition.parameterTypes, zip(definition.parameterNames, parameterCppTypeNames)).map {
+            callbackCallArgumentExpression(type: $0.0, cppTypeName: $0.1.1, name: $0.1.0)
+        }
+        let prelude = callbackArguments.map { $0.prelude }
+            .filter { !$0.isEmpty }
+            .map { $0.indented }
+            .joined(separator: "\n")
+        let callArguments = callbackArguments.map { $0.expression }.joined(separator: ", ")
+        let callExpression = "callbackBox->value(\(callArguments))"
+        let body = callbackReturnStatement(returnType: definition.returnType,
+                                           cppTypeName: returnCppTypeName,
+                                           callExpression: callExpression)
+
+        return """
+
+            extern "C" \(ffiReturnType(for: definition.returnType).name) \(definition.symbolName)(ValdiRustHandle callback\(parameterDeclarationSuffix)) {
+                auto *callbackBox = Valdi::unsafeBridgeUnretained<ValdiRustBridgeBox<\(callbackCppTypeName)>>(callback.ptr);
+            \(prelude)
+                \(body.indented)
+            }
+
+        """
+    }
+
+    private func rustCallbackWrapperSource(definition: RustCallbackDefinition) -> String {
+        func moduleScopedABIType(_ type: String) -> String {
+            return type.replacingOccurrences(of: "valdi_rust::", with: "crate::valdi_rust::")
+        }
+
+        let markerName = "\(definition.wrapperName)HandleMarker"
+        let parameterDeclarations = zip(definition.parameterTypes, definition.parameterNames).map {
+            "\($0.1): \(rustUserTypeName(for: $0.0))"
+        }.joined(separator: ", ")
+        let externParameters = zip(definition.parameterTypes, definition.parameterNames).map {
+            "\($0.1): \(moduleScopedABIType(rustFFIParameterType(for: $0.0)))"
+        }.joined(separator: ", ")
+        let externParameterSuffix = externParameters.isEmpty ? "" : ", \(externParameters)"
+        let callArguments = zip(definition.parameterTypes, definition.parameterNames).map {
+            rustCallbackCallArgument(type: $0.0, name: $0.1)
+        }
+        let prelude = callArguments.map { $0.prelude }
+            .filter { !$0.isEmpty }
+            .map { "        \($0)" }
+            .joined(separator: "\n")
+        let callArgumentSuffix = callArguments.map { $0.expression }.isEmpty ? "" : ", \(callArguments.map { $0.expression }.joined(separator: ", "))"
+        let returnTypeName = rustUserTypeName(for: definition.returnType)
+        let rustReturnDeclaration = definition.returnType.unwrappingOptional.isVoid ? "" : " -> \(returnTypeName)"
+        let externReturnDeclaration = rustFFIReturnType(for: definition.returnType).map { " -> \(moduleScopedABIType($0))" } ?? ""
+        let methodParameterList = parameterDeclarations.isEmpty ? "&self" : "&self, \(parameterDeclarations)"
+        let callBody: String
+        if definition.returnType.unwrappingOptional.isVoid {
+            callBody = "unsafe { \(definition.symbolName)(self.0.as_handle()\(callArgumentSuffix)); }"
+        } else {
+            callBody = """
+                    let result = unsafe { \(definition.symbolName)(self.0.as_handle()\(callArgumentSuffix)) };
+                    \(rustCallbackReturnExpression(returnType: definition.returnType, resultName: "result"))
+            """
+        }
+        let preludeBlock = prelude.isEmpty ? "" : "\(prelude)\n"
+
+        return """
+
+            pub enum \(markerName) {}
+
+            #[derive(Clone, Copy)]
+            pub struct \(definition.wrapperName)(crate::valdi_rust::ValdiRustTypedHandle<\(markerName)>);
+
+            unsafe extern "C" {
+                fn \(definition.symbolName)(callback: crate::valdi_rust::ValdiRustHandle\(externParameterSuffix))\(externReturnDeclaration);
+            }
+
+            impl \(definition.wrapperName) {
+                pub fn from_handle(handle: crate::valdi_rust::ValdiRustHandle) -> Self {
+                    Self(crate::valdi_rust::ValdiRustTypedHandle::from_handle(handle))
+                }
+
+                pub fn as_handle(&self) -> crate::valdi_rust::ValdiRustHandle {
+                    self.0.as_handle()
+                }
+
+                pub fn retain_for_storage(&self) -> crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)> {
+                    self.0.retain_for_storage()
+                }
+
+                pub fn from_retained_handle(handle: &crate::valdi_rust::ValdiRustRetainedHandle<\(markerName)>) -> Self {
+                    Self(handle.as_typed_handle())
+                }
+
+                pub fn call(\(methodParameterList))\(rustReturnDeclaration) {
+            \(preludeBlock)\(callBody)
+                }
+            }
+
+        """
+    }
+
     private func writeCommonRuntime(to writer: CodeWriter) {
         writer.appendBody("""
             struct ValdiRustStringView {
@@ -545,6 +849,26 @@ final class CppRustModuleBridgeGenerator {
             struct ValdiRustObservableSubscription {
                 void *ptr;
                 void (*unsubscribe)(void *ptr);
+            };
+
+            struct ValdiRustPromiseResolver {
+                void *context;
+                void (*retain)(void *context);
+                void (*release)(void *context);
+                void (*resolveDouble)(void *context, double value);
+                void (*resolveBool)(void *context, bool value);
+                void (*resolveLong)(void *context, int64_t value);
+                void (*resolveString)(void *context, ValdiRustStringView value);
+                void (*resolveBytes)(void *context, ValdiRustBytesView value);
+                void (*resolveHandle)(void *context, ValdiRustHandle value);
+                void (*resolveVoid)(void *context);
+                void (*reject)(void *context, ValdiRustStringView message);
+            };
+
+            struct ValdiRustPromise {
+                void *context;
+                void (*run)(void *context, ValdiRustPromiseResolver resolver);
+                void (*release)(void *context);
             };
 
             struct ValdiRustDoubleObservableObserver {
@@ -606,6 +930,14 @@ final class CppRustModuleBridgeGenerator {
                 Valdi::unsafeBridgeRelease(ptr);
             }
 
+            [[maybe_unused]] static void valdiRustCppFreeOwnedString(const char *data, size_t /*len*/) {
+                delete[] data;
+            }
+
+            [[maybe_unused]] static void valdiRustCppFreeOwnedBytes(const uint8_t *data, size_t /*len*/) {
+                delete[] data;
+            }
+
             [[maybe_unused]] static Valdi::StringBox valdiRustStringToStringBox(ValdiRustOwnedString string) {
                 auto out = Valdi::StringBox::fromString(std::string_view(string.data, string.len));
                 if (string.free != nullptr) {
@@ -616,6 +948,16 @@ final class CppRustModuleBridgeGenerator {
 
             [[maybe_unused]] static Valdi::StringBox valdiRustStringViewToStringBox(ValdiRustStringView string) {
                 return Valdi::StringBox::fromString(std::string_view(string.data, string.len));
+            }
+
+            [[maybe_unused]] static ValdiRustOwnedString valdiRustStringBoxToOwnedString(const Valdi::StringBox &string) {
+                auto view = string.toStringView();
+                char *data = nullptr;
+                if (!view.empty()) {
+                    data = new char[view.size()];
+                    std::memcpy(data, view.data(), view.size());
+                }
+                return ValdiRustOwnedString{data, view.size(), valdiRustCppFreeOwnedString};
             }
 
             [[maybe_unused]] static Valdi::BytesView valdiRustBytesToBytesView(ValdiRustOwnedBytes bytes) {
@@ -633,10 +975,158 @@ final class CppRustModuleBridgeGenerator {
                 return Valdi::BytesView(out);
             }
 
+            [[maybe_unused]] static ValdiRustOwnedBytes valdiRustBytesViewToOwnedBytes(const Valdi::BytesView &bytes) {
+                uint8_t *data = nullptr;
+                if (!bytes.empty()) {
+                    data = new uint8_t[bytes.size()];
+                    std::memcpy(data, bytes.data(), bytes.size());
+                }
+                return ValdiRustOwnedBytes{data, bytes.size(), valdiRustCppFreeOwnedBytes};
+            }
+
             template<typename T>
             [[maybe_unused]] static T valdiRustBridgeTakeBoxedValue(ValdiRustHandle handle) {
                 auto box = Valdi::unsafeBridgeTransfer<ValdiRustBridgeBox<T>>(handle.ptr);
                 return std::move(box->value);
+            }
+
+            template<typename T>
+            [[maybe_unused]] static T valdiRustBridgeCopyBoxedValue(ValdiRustHandle handle) {
+                auto *box = Valdi::unsafeBridgeUnretained<ValdiRustBridgeBox<T>>(handle.ptr);
+                return box->value;
+            }
+
+            template<typename T, typename U>
+            [[maybe_unused]] static ValdiRustHandle valdiRustBridgeRetainBoxedValue(U &&value) {
+                auto valueBox = Valdi::makeShared<ValdiRustBridgeBox<T>>(std::forward<U>(value));
+                return ValdiRustHandle{Valdi::unsafeBridgeRetain(valueBox.get()), valdiRustBridgeRetain, valdiRustBridgeRelease};
+            }
+
+            template<typename T>
+            class ValdiRustPromiseResolverBox final : public Valdi::SimpleRefCountable {
+            public:
+                Valdi::TypedPromise<T> promise;
+            };
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseSetValue(void *context, const T &value) {
+                auto *box = Valdi::unsafeBridgeUnretained<ValdiRustPromiseResolverBox<T>>(context);
+                box->promise.setValue(value);
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseReject(void *context, ValdiRustStringView message) {
+                auto *box = Valdi::unsafeBridgeUnretained<ValdiRustPromiseResolverBox<T>>(context);
+                box->promise.setError(Valdi::Error(valdiRustStringViewToStringBox(message)));
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveDouble(void *context, double value) {
+                valdiRustPromiseSetValue<T>(context, value);
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveBool(void *context, bool value) {
+                valdiRustPromiseSetValue<T>(context, value);
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveLong(void *context, int64_t value) {
+                valdiRustPromiseSetValue<T>(context, value);
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveString(void *context, ValdiRustStringView value) {
+                valdiRustPromiseSetValue<T>(context, valdiRustStringViewToStringBox(value));
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveBytes(void *context, ValdiRustBytesView value) {
+                valdiRustPromiseSetValue<T>(context, valdiRustBytesViewToBytesView(value));
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveHandle(void *context, ValdiRustHandle value) {
+                valdiRustPromiseSetValue<T>(context, valdiRustBridgeTakeBoxedValue<T>(value));
+            }
+
+            [[maybe_unused]] static void valdiRustPromiseResolveVoid(void *context) {
+                auto *box = Valdi::unsafeBridgeUnretained<ValdiRustPromiseResolverBox<void>>(context);
+                box->promise.setValue();
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseRejectWrongResolver(void *context, const char *message) {
+                auto view = ValdiRustStringView{message, std::strlen(message)};
+                valdiRustPromiseReject<T>(context, view);
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveDoubleMismatch(void *context, double /*value*/) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected double value");
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveBoolMismatch(void *context, bool /*value*/) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected bool value");
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveLongMismatch(void *context, int64_t /*value*/) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected long value");
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveStringMismatch(void *context, ValdiRustStringView /*value*/) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected string value");
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveBytesMismatch(void *context, ValdiRustBytesView /*value*/) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected bytes value");
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveHandleMismatch(void *context, ValdiRustHandle /*value*/) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected handle value");
+            }
+
+            template<typename T>
+            [[maybe_unused]] static void valdiRustPromiseResolveVoidMismatch(void *context) {
+                valdiRustPromiseRejectWrongResolver<T>(context, "Rust promise resolved with an unexpected void value");
+            }
+
+            template<typename T, typename ConfigureResolver>
+            [[maybe_unused]] static Valdi::Future<T> valdiRustMakePromiseFuture(ValdiRustPromise rustPromise,
+                                                                                ConfigureResolver configureResolver) {
+                auto box = Valdi::makeShared<ValdiRustPromiseResolverBox<T>>();
+                auto future = box->promise.getFuture();
+                ValdiRustPromiseResolver resolver{
+                    Valdi::unsafeBridgeRetain(box.get()),
+                    valdiRustBridgeRetain,
+                    valdiRustBridgeRelease,
+                    valdiRustPromiseResolveDoubleMismatch<T>,
+                    valdiRustPromiseResolveBoolMismatch<T>,
+                    valdiRustPromiseResolveLongMismatch<T>,
+                    valdiRustPromiseResolveStringMismatch<T>,
+                    valdiRustPromiseResolveBytesMismatch<T>,
+                    valdiRustPromiseResolveHandleMismatch<T>,
+                    valdiRustPromiseResolveVoidMismatch<T>,
+                    valdiRustPromiseReject<T>
+                };
+                configureResolver(resolver);
+
+                if (rustPromise.run == nullptr) {
+                    box->promise.setError(Valdi::Error("Rust promise is missing an executor"));
+                    resolver.release(resolver.context);
+                    if (rustPromise.release != nullptr) {
+                        rustPromise.release(rustPromise.context);
+                    }
+                    return future;
+                }
+
+                rustPromise.run(rustPromise.context, resolver);
+                return future;
             }
 
             template<typename OnEventFn>
@@ -789,11 +1279,14 @@ final class CppRustModuleBridgeGenerator {
         let generator = CppFileGenerator(namespace: cppType.declaration.namespace, isHeader: false)
         generator.includeSection.addInclude(path: moduleFactoryCppType.includePath)
         generator.includeSection.addInclude(path: "valdi_core/cpp/Utils/Bytes.hpp")
+        generator.includeSection.addInclude(path: "valdi_core/cpp/Utils/Future.hpp")
         generator.includeSection.addInclude(path: "valdi_core/cpp/Utils/StringBox.hpp")
+        generator.includeSection.addSystemInclude(path: "cstring")
         generator.includeSection.addSystemInclude(path: "cstdint")
         generator.includeSection.addSystemInclude(path: "cstddef")
         generator.includeSection.addSystemInclude(path: "optional")
         generator.includeSection.addSystemInclude(path: "string_view")
+        generator.includeSection.addSystemInclude(path: "type_traits")
         generator.includeSection.addSystemInclude(path: "utility")
 
         generator.body.appendBody(FileHeaderCommentGenerator.generateComment(sourceFilename: sourceFileName, additionalComments: """
@@ -807,6 +1300,8 @@ final class CppRustModuleBridgeGenerator {
         var methodImplementations = ""
         var externDeclarations = ""
         var rustAdapterFunctions = ""
+        var callbackThunks = ""
+        var rustCallbackWrappers = ""
         var rustHandleTypeDefinitions = Set<RustHandleTypeDefinition>()
 
         for property in exportedModule.model.properties {
@@ -845,8 +1340,39 @@ final class CppRustModuleBridgeGenerator {
                 let rustParameterDeclarations = zip(parameters, rustParameterNames).map {
                     "\($0.1): \(rustFFIParameterType(for: $0.0.type))"
                 }.joined(separator: ", ")
-                let rustUserArguments = zip(parameters, rustParameterNames).map {
-                    rustUserArgumentExpression(type: $0.0.type, name: $0.1)
+                let callbackWrapperNames: [String?] = try parameters.enumerated().map { index, parameter in
+                    guard case .function(let callbackParameters, let callbackReturnType, _, _, _) = parameter.type.unwrappingOptional else {
+                        return nil
+                    }
+
+                    let wrapperName = rustCallbackWrapperName(methodName: propertyName.methodName, parameterName: parameter.name)
+                    let symbolName = rustCallbackSymbolName(methodName: propertyName.methodName, parameterName: parameter.name)
+                    let callbackParameterNames = callbackParameters.indices.map { "arg\($0)" }
+                    let definition = RustCallbackDefinition(wrapperName: wrapperName,
+                                                            symbolName: symbolName,
+                                                            parameterNames: callbackParameterNames,
+                                                            parameterTypes: callbackParameters.map { $0.type },
+                                                            returnType: callbackReturnType)
+                    let callbackParameterCppTypeNames = try callbackParameters.enumerated().map { callbackIndex, callbackParameter in
+                        try typeGenerator.getTypeParser(type: callbackParameter.type,
+                                                        namePaths: [property.name, parameter.name, "Argument\(callbackIndex)"],
+                                                        nameAllocator: nameAllocator.scoped()).typeNameResolver.resolve(cppType.declaration.namespace)
+                    }
+                    let callbackReturnCppTypeName = try typeGenerator.getTypeParser(type: callbackReturnType,
+                                                                                    namePaths: [property.name, parameter.name, "Return"],
+                                                                                    nameAllocator: nameAllocator.scoped()).typeNameResolver.resolve(cppType.declaration.namespace)
+                    let callbackCppTypeName = cppMethod.parameters[index].typeNameResolver.resolve(cppType.declaration.namespace)
+                    callbackThunks += callbackThunkSource(definition: definition,
+                                                          callbackCppTypeName: callbackCppTypeName,
+                                                          parameterCppTypeNames: callbackParameterCppTypeNames,
+                                                          returnCppTypeName: callbackReturnCppTypeName)
+                    rustCallbackWrappers += rustCallbackWrapperSource(definition: definition)
+                    return wrapperName
+                }
+                let rustUserArguments = parameters.indices.map {
+                    rustUserArgumentExpression(type: parameters[$0].type,
+                                               name: rustParameterNames[$0],
+                                               callbackWrapperName: callbackWrapperNames[$0])
                 }.joined(separator: ", ")
 
                 try validateRustBoundaryType(property.type, context: "exported module function '\(property.name)'", allowVoid: true)
@@ -919,11 +1445,25 @@ final class CppRustModuleBridgeGenerator {
 
                     """
                 }
+                let cppReturnBody: String
+                if case .promise(let promiseValueType) = returnType.unwrappingOptional {
+                    let promiseValueTypeParser = try typeGenerator.getTypeParser(type: promiseValueType,
+                                                                                  namePaths: [property.name, "PromiseValue"],
+                                                                                  nameAllocator: nameAllocator.scoped())
+                    let promiseValueCppType = promiseValueTypeParser.typeNameResolver.resolve(cppType.declaration.namespace)
+                    cppReturnBody = promiseReturnStatement(returnType: returnType,
+                                                           valueCppTypeName: promiseValueCppType,
+                                                           callExpression: "\(rustSymbol)(\(rustCallArguments))")!
+                } else {
+                    cppReturnBody = returnStatement(returnType: returnType,
+                                                    cppTypeName: returnCppType,
+                                                    callExpression: "\(rustSymbol)(\(rustCallArguments))")
+                }
                 methodImplementations += """
 
                     \(returnTypeName) \(propertyName.methodName)(\(cppParameters.joined(separator: ", "))) final {
                 \(ffiParameters.map { $0.prelude }.filter { !$0.isEmpty }.map { $0.indented }.joined(separator: "\n"))
-                        \(returnStatement(returnType: returnType, cppTypeName: returnCppType, callExpression: "\(rustSymbol)(\(rustCallArguments))").indented)
+                        \(cppReturnBody.indented)
                     }
 
                 """
@@ -958,10 +1498,24 @@ final class CppRustModuleBridgeGenerator {
 
                     """
                 }
+                let cppReturnBody: String
+                if case .promise(let promiseValueType) = property.type.unwrappingOptional {
+                    let promiseValueTypeParser = try typeGenerator.getTypeParser(type: promiseValueType,
+                                                                                  namePaths: [property.name, "PromiseValue"],
+                                                                                  nameAllocator: nameAllocator.scoped())
+                    let promiseValueCppType = promiseValueTypeParser.typeNameResolver.resolve(cppType.declaration.namespace)
+                    cppReturnBody = promiseReturnStatement(returnType: property.type,
+                                                           valueCppTypeName: promiseValueCppType,
+                                                           callExpression: "\(rustSymbol)()")!
+                } else {
+                    cppReturnBody = returnStatement(returnType: property.type,
+                                                    cppTypeName: returnCppType,
+                                                    callExpression: "\(rustSymbol)()")
+                }
                 methodImplementations += """
 
                     \(returnCppType) \(propertyName.methodName)() final {
-                        \(returnStatement(returnType: property.type, cppTypeName: returnCppType, callExpression: "\(rustSymbol)()").indented)
+                        \(cppReturnBody.indented)
                     }
 
                 """
@@ -969,6 +1523,8 @@ final class CppRustModuleBridgeGenerator {
         }
 
         generator.body.appendBody("""
+            \(callbackThunks)
+
             extern "C" {
             \(externDeclarations.indented)
             }
@@ -1002,13 +1558,14 @@ final class CppRustModuleBridgeGenerator {
             NativeSource(relativePath: cppType.includeDir,
                          filename: "\(bundleInfo.name).rust_bridge.rs",
                          file: .data(try rustAdapterSource(typeDefinitions: rustHandleTypeDefinitionsSource(definitions: rustHandleTypeDefinitions),
+                                                           callbackWrappers: rustCallbackWrappers,
                                                            functions: rustAdapterFunctions).utf8Data()),
                          groupingIdentifier: "\(bundleInfo.name).rust_bridge.rs",
                          groupingPriority: 0)
         ]
     }
 
-    private func rustAdapterSource(typeDefinitions: String, functions: String) -> String {
+    private func rustAdapterSource(typeDefinitions: String, callbackWrappers: String, functions: String) -> String {
         return """
             // Generated Rust adapter for \(cppType.declaration.fullTypeName).
             // Rust symbols are derived from the @ExportModule TypeScript declaration.
@@ -1024,6 +1581,7 @@ final class CppRustModuleBridgeGenerator {
                 use crate::valdi_rust::*;
 
             \(typeDefinitions)
+            \(callbackWrappers)
 
                 include!(env!("VALDI_RUST_USER_ROOT_PATH"));
             }

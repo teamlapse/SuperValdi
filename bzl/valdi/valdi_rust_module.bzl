@@ -24,6 +24,13 @@ pub struct ValdiRustStringView {
 }
 
 impl ValdiRustStringView {
+    pub fn from_str(value: &str) -> Self {
+        Self {
+            data: value.as_ptr() as *const c_char,
+            len: value.len(),
+        }
+    }
+
     pub fn to_string(self) -> String {
         if self.data.is_null() {
             return String::new();
@@ -67,6 +74,18 @@ impl ValdiRustOwnedString {
             free: valdi_rust_free_owned_string,
         }
     }
+
+    pub fn into_string(self) -> String {
+        let bytes = if self.data.is_null() {
+            Vec::new()
+        } else {
+            unsafe { std::slice::from_raw_parts(self.data as *const u8, self.len).to_vec() }
+        };
+        unsafe {
+            (self.free)(self.data, self.len);
+        }
+        String::from_utf8(bytes).expect("Valdi Rust owned string is not valid UTF-8")
+    }
 }
 
 #[repr(C)]
@@ -77,6 +96,13 @@ pub struct ValdiRustBytesView {
 }
 
 impl ValdiRustBytesView {
+    pub fn from_slice(value: &[u8]) -> Self {
+        Self {
+            data: value.as_ptr(),
+            len: value.len(),
+        }
+    }
+
     pub fn to_vec(self) -> Bytes {
         if self.data.is_null() {
             return Vec::new();
@@ -116,6 +142,18 @@ impl ValdiRustOwnedBytes {
             len,
             free: valdi_rust_free_owned_bytes,
         }
+    }
+
+    pub fn into_vec(self) -> Bytes {
+        let bytes = if self.data.is_null() {
+            Vec::new()
+        } else {
+            unsafe { std::slice::from_raw_parts(self.data, self.len).to_vec() }
+        };
+        unsafe {
+            (self.free)(self.data, self.len);
+        }
+        bytes
     }
 }
 
@@ -244,8 +282,225 @@ pub type Any = ValdiRustTypedHandle<ValdiRustAnyMarker>;
 pub type Array<T> = ValdiRustTypedHandle<ValdiRustArrayMarker<T>>;
 pub type Map<K, V> = ValdiRustTypedHandle<ValdiRustMapMarker<K, V>>;
 pub type Optional<T> = ValdiRustTypedHandle<ValdiRustOptionalMarker<T>>;
-pub type Promise<T> = ValdiRustTypedHandle<ValdiRustPromiseMarker<T>>;
 pub type Function = ValdiRustTypedHandle<ValdiRustFunctionMarker>;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ValdiRustPromiseResolver {
+    pub context: *mut c_void,
+    pub retain: unsafe extern "C" fn(*mut c_void),
+    pub release: unsafe extern "C" fn(*mut c_void),
+    pub resolve_double: extern "C" fn(*mut c_void, f64),
+    pub resolve_bool: extern "C" fn(*mut c_void, bool),
+    pub resolve_long: extern "C" fn(*mut c_void, i64),
+    pub resolve_string: extern "C" fn(*mut c_void, ValdiRustStringView),
+    pub resolve_bytes: extern "C" fn(*mut c_void, ValdiRustBytesView),
+    pub resolve_handle: extern "C" fn(*mut c_void, ValdiRustHandle),
+    pub resolve_void: extern "C" fn(*mut c_void),
+    pub reject: extern "C" fn(*mut c_void, ValdiRustStringView),
+}
+
+#[repr(C)]
+pub struct ValdiRustPromise {
+    pub context: *mut c_void,
+    pub run: unsafe extern "C" fn(*mut c_void, ValdiRustPromiseResolver),
+    pub release: unsafe extern "C" fn(*mut c_void),
+}
+
+pub trait ValdiRustPromiseValue: Send + 'static {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self);
+}
+
+impl ValdiRustPromiseValue for Double {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        (resolver.resolve_double)(resolver.context, value);
+    }
+}
+
+impl ValdiRustPromiseValue for Bool {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        (resolver.resolve_bool)(resolver.context, value);
+    }
+}
+
+impl ValdiRustPromiseValue for Long {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        (resolver.resolve_long)(resolver.context, value);
+    }
+}
+
+impl ValdiRustPromiseValue for String {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        let view = ValdiRustStringView::from_str(&value);
+        (resolver.resolve_string)(resolver.context, view);
+    }
+}
+
+impl ValdiRustPromiseValue for Bytes {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        let view = ValdiRustBytesView::from_slice(&value);
+        (resolver.resolve_bytes)(resolver.context, view);
+    }
+}
+
+impl<T: Send + 'static> ValdiRustPromiseValue for ValdiRustTypedHandle<T> {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        (resolver.resolve_handle)(resolver.context, value.into_return_handle());
+    }
+}
+
+impl<T: Send + 'static> ValdiRustPromiseValue for ValdiRustRetainedHandle<T> {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, value: Self) {
+        (resolver.resolve_handle)(resolver.context, value.as_typed_handle().into_return_handle());
+    }
+}
+
+impl ValdiRustPromiseValue for () {
+    fn resolve_with(resolver: &ValdiRustPromiseResolver, _value: Self) {
+        (resolver.resolve_void)(resolver.context);
+    }
+}
+
+pub struct PromiseResolver<T> {
+    resolver: ValdiRustPromiseResolver,
+    marker: PhantomData<T>,
+}
+
+unsafe impl<T: Send + 'static> Send for PromiseResolver<T> {}
+
+impl<T> Clone for PromiseResolver<T> {
+    fn clone(&self) -> Self {
+        unsafe {
+            (self.resolver.retain)(self.resolver.context);
+        }
+        Self {
+            resolver: self.resolver,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Drop for PromiseResolver<T> {
+    fn drop(&mut self) {
+        unsafe {
+            (self.resolver.release)(self.resolver.context);
+        }
+    }
+}
+
+impl<T> PromiseResolver<T> {
+    fn from_abi(resolver: ValdiRustPromiseResolver) -> Self {
+        Self {
+            resolver,
+            marker: PhantomData,
+        }
+    }
+
+    pub fn reject<S: AsRef<str>>(self, message: S) {
+        let view = ValdiRustStringView::from_str(message.as_ref());
+        (self.resolver.reject)(self.resolver.context, view);
+    }
+}
+
+impl<T: ValdiRustPromiseValue> PromiseResolver<T> {
+    pub fn resolve(self, value: T) {
+        T::resolve_with(&self.resolver, value);
+    }
+}
+
+enum ValdiRustPromiseInner<T> {
+    Incoming(ValdiRustTypedHandle<ValdiRustPromiseMarker<T>>),
+    Outgoing(Box<dyn FnOnce(PromiseResolver<T>) + Send + 'static>),
+}
+
+pub struct Promise<T> {
+    inner: ValdiRustPromiseInner<T>,
+}
+
+impl<T: Send + 'static> Promise<T> {
+    pub fn from_handle(handle: ValdiRustHandle) -> Self {
+        Self {
+            inner: ValdiRustPromiseInner::Incoming(ValdiRustTypedHandle::from_handle(handle)),
+        }
+    }
+
+    pub fn as_handle(&self) -> Option<ValdiRustHandle> {
+        match &self.inner {
+            ValdiRustPromiseInner::Incoming(handle) => Some(handle.as_handle()),
+            ValdiRustPromiseInner::Outgoing(_) => None,
+        }
+    }
+
+    pub fn new<F>(executor: F) -> Self
+    where
+        F: FnOnce(PromiseResolver<T>) + Send + 'static,
+    {
+        Self {
+            inner: ValdiRustPromiseInner::Outgoing(Box::new(executor)),
+        }
+    }
+
+    pub fn rejected<S: Into<String> + Send + 'static>(message: S) -> Self {
+        let message = message.into();
+        Self::new(move |resolver| resolver.reject(message))
+    }
+}
+
+impl<T: ValdiRustPromiseValue> Promise<T> {
+    pub fn resolved(value: T) -> Self {
+        Self::new(move |resolver| resolver.resolve(value))
+    }
+
+    pub fn into_ffi(self) -> ValdiRustPromise {
+        match self.inner {
+            ValdiRustPromiseInner::Incoming(_) => {
+                Promise::<T>::rejected("Cannot return an incoming Valdi promise handle from Rust").into_ffi()
+            }
+            ValdiRustPromiseInner::Outgoing(executor) => {
+                let state = ValdiRustPromiseState { executor: Some(executor) };
+                ValdiRustPromise {
+                    context: Box::into_raw(Box::new(state)) as *mut c_void,
+                    run: valdi_rust_run_promise::<T>,
+                    release: valdi_rust_release_promise::<T>,
+                }
+            }
+        }
+    }
+}
+
+struct ValdiRustPromiseState<T> {
+    executor: Option<Box<dyn FnOnce(PromiseResolver<T>) + Send + 'static>>,
+}
+
+unsafe extern "C" fn valdi_rust_run_promise<T: ValdiRustPromiseValue>(
+    ptr: *mut c_void,
+    resolver: ValdiRustPromiseResolver,
+) {
+    if ptr.is_null() {
+        let resolver = PromiseResolver::<T>::from_abi(resolver);
+        resolver.reject("Rust promise executor is missing");
+        return;
+    }
+
+    let mut state: Box<ValdiRustPromiseState<T>> =
+        unsafe { Box::from_raw(ptr as *mut ValdiRustPromiseState<T>) };
+    if let Some(executor) = state.executor.take() {
+        executor(PromiseResolver::from_abi(resolver));
+    } else {
+        let resolver = PromiseResolver::<T>::from_abi(resolver);
+        resolver.reject("Rust promise executor was already consumed");
+    }
+}
+
+unsafe extern "C" fn valdi_rust_release_promise<T>(ptr: *mut c_void) {
+    if ptr.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(ptr as *mut ValdiRustPromiseState<T>));
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -510,6 +765,14 @@ impl ValdiRustObservableValue for Bytes {
     type Observer = ValdiRustBytesObservableObserver;
 }
 
+impl<T: Send + 'static> ValdiRustObservableValue for ValdiRustTypedHandle<T> {
+    type Observer = ValdiRustHandleObservableObserver;
+}
+
+impl<T: Send + 'static> ValdiRustObservableValue for ValdiRustRetainedHandle<T> {
+    type Observer = ValdiRustHandleObservableObserver;
+}
+
 impl ValdiRustObserver<f64> for ValdiRustDoubleObservableObserver {
     fn next(&self, value: f64) {
         ValdiRustDoubleObservableObserver::next(self, value);
@@ -566,6 +829,26 @@ impl ValdiRustObserver<Bytes> for ValdiRustBytesObservableObserver {
 
     fn release(&self) {
         ValdiRustBytesObservableObserver::release(self);
+    }
+}
+
+impl<T: Send + 'static> ValdiRustObserver<ValdiRustTypedHandle<T>> for ValdiRustHandleObservableObserver {
+    fn next(&self, value: ValdiRustTypedHandle<T>) {
+        ValdiRustHandleObservableObserver::next(self, value.into_return_handle());
+    }
+
+    fn release(&self) {
+        ValdiRustHandleObservableObserver::release(self);
+    }
+}
+
+impl<T: Send + 'static> ValdiRustObserver<ValdiRustRetainedHandle<T>> for ValdiRustHandleObservableObserver {
+    fn next(&self, value: ValdiRustRetainedHandle<T>) {
+        ValdiRustHandleObservableObserver::next(self, value.as_typed_handle().into_return_handle());
+    }
+
+    fn release(&self) {
+        ValdiRustHandleObservableObserver::release(self);
     }
 }
 

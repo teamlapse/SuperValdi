@@ -371,6 +371,56 @@ pub fn payload_size(payload: Bytes) -> Double {
 }
 ```
 
+Function parameters are also generated into typed Rust callback wrappers. Given
+this TypeScript declaration:
+
+```typescript
+// @ExportFunction
+export function describeAfterIncrement(formatter: (value: number) => string): string;
+```
+
+the Rust implementation receives a generated `DescribeAfterIncrementFormatterCallback`
+with a typed `call` method:
+
+```rust
+pub fn describe_after_increment(formatter: DescribeAfterIncrementFormatterCallback) -> String {
+    let next = 1.0;
+    formatter.call(next)
+}
+```
+
+The generated bridge owns the C++ thunk that converts supported callback
+arguments and return values. Unsupported callback parameter or return shapes are
+rejected by the same native boundary validation used for exported Rust
+functions.
+
+Promise returns are generated as normal Valdi native promises. Rust code returns
+`Promise<T>` and uses the generated resolver helper:
+
+```typescript
+// @ExportFunction
+export function formatCountAsync(value: number): Promise<string>;
+```
+
+```rust
+pub fn format_count_async(value: Double) -> Promise<String> {
+    Promise::resolved(format!("Async Rust count: {}", value as i64))
+}
+
+pub fn load_later() -> Promise<String> {
+    Promise::new(|resolver| {
+        std::thread::spawn(move || {
+            resolver.resolve("done".to_string());
+        });
+    })
+}
+```
+
+The generated C++ adapter converts the Rust promise executor into the existing
+`Valdi::Future<T>` type. `Promise<T>` supports the same boundary values as Rust
+function returns: primitives, strings, bytes, generated/converted native values
+as typed handles, and `()` for `Promise<void>`.
+
 ### Rust WebAssembly implementation
 
 For web, compile Rust to a `.wasm` artifact and provide a JavaScript loader under the module's web native surface. Package both files with `valdi_rust_web_deps()` and pass that target to `web_wasm_deps`:
@@ -408,11 +458,11 @@ Valdi does not export RxJS `Observable<T>` directly as a native ABI type. Use th
 For example, this TypeScript declaration:
 
 ```typescript
-import { BridgeObservable } from 'bridge_observables/src/types/BridgeObservable';
+import { Observable } from 'valdi_rxjs/src/Observable';
 
 /** @ExportModule */
 // @ExportFunction
-export function count(): BridgeObservable<number>;
+export function count(): Observable<number>;
 
 // @ExportFunction
 export function increment(): void;
@@ -439,7 +489,17 @@ pub fn increment() {
 }
 ```
 
-`BridgeObservable<T>` is accepted only when `T` is one of the native boundary shapes Valdi already supports: primitives, strings, bytes, arrays/maps of supported types, generated native models, marshall-as-untyped native values, or values with an existing `@NativeTypeConverter`. Unsupported payload types fail during compilation.
+`Observable<T>` surfaces that convert to `BridgeObservable<T>` and explicit
+`BridgeObservable<T>` declarations are accepted only when `T` is one of the
+native boundary shapes Valdi already supports: primitives, strings, bytes,
+arrays/maps of supported types, generated native models, marshall-as-untyped
+native values, or values with an existing `@NativeTypeConverter`. Unsupported
+payload types fail during compilation.
+
+For handle-backed payloads such as generated native models, the Rust observable
+helpers use the generated handle observer ABI. Emit a `ValdiRustTypedHandle<T>`
+for immediate values, or a `ValdiRustRetainedHandle<T>` when the observable
+stores the value across calls.
 
 This is the same interop path used by Objective-C, Swift, Kotlin, Java, and C++ implementations, and it keeps unsubscribe, error, and completion semantics consistent with RxJS.
 

@@ -1,4 +1,4 @@
-import { BridgeObservable } from 'bridge_observables/src/types/BridgeObservable';
+import { Observable } from 'valdi_rxjs/src/Observable';
 
 /**
  * @ExportModule
@@ -11,13 +11,19 @@ export interface CounterPayload {
 }
 
 // @ExportFunction
-export function count(): BridgeObservable<number>;
+export function count(): Observable<number>;
 
 // @ExportFunction
 export function increment(): void;
 
 // @ExportFunction
+export function describeAfterIncrement(formatter: (value: number) => string): string;
+
+// @ExportFunction
 export function formatCount(prefix: string, value: number): string;
+
+// @ExportFunction
+export function formatCountAsync(value: number): Promise<string>;
 
 // @ExportFunction
 export function labelBytes(label: string): Uint8Array;
