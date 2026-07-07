@@ -340,6 +340,32 @@ resvg_crate.from_specs(
 )
 use_repo(resvg_crate, "resvg_crates")
 
+valdi_rust_crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+valdi_rust_crate.spec(package = "postcard", default_features = False, features = ["alloc"], repositories = ["valdi_rust_crates"], version = "1.1.3")
+valdi_rust_crate.spec(package = "serde", features = ["derive"], repositories = ["valdi_rust_crates"], version = "1.0.228")
+valdi_rust_crate.spec(package = "serde_json", repositories = ["valdi_rust_crates"], version = "1.0.150")
+valdi_rust_crate.render_config(
+    default_package_name = "",
+    repositories = ["valdi_rust_crates"],
+)
+valdi_rust_crate.from_specs(
+    name = "valdi_rust_crates",
+    cargo_lockfile = "//third-party/valdi_rust:Cargo.lock",
+    lockfile = "//third-party/valdi_rust:cargo-bazel-lock.json",
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-apple-ios",
+        "aarch64-apple-ios-sim",
+        "aarch64-linux-android",
+        "armv7-linux-androideabi",
+        "x86_64-apple-ios",
+        "x86_64-linux-android",
+        "x86_64-apple-darwin",
+        "x86_64-unknown-linux-gnu",
+    ],
+)
+use_repo(valdi_rust_crate, "valdi_rust_crates")
+
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 rust_host_tools.host_tools(
     name = "rust_host_tools_nightly",

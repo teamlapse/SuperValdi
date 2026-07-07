@@ -1,0 +1,70 @@
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_codec_test",
+    "valdi_rust_framework_crate",
+)
+
+valdi_rust_framework_crate(
+    name = "codec",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "valdi_rust_codec",
+    deps = [
+        "//valdi_rust/ir",
+        "@valdi_rust_crates//:postcard",
+        "@valdi_rust_crates//:serde",
+        "@valdi_rust_crates//:serde_json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+COMMON_TEST_DEPS = [
+    ":codec",
+    "//valdi_rust/fixtures",
+]
+
+COMMON_TEST_DATA = [
+    "//docs/rust_migration:replacement_contract_yaml",
+    "//valdi_rust/fixtures:contract_fixture_manifest",
+    "//valdi_rust/fixtures:invalid_fixture_manifest",
+    "//valdi_rust/fixtures:serialized_fixtures",
+]
+
+valdi_rust_codec_test(
+    name = "roundtrip_test",
+    srcs = ["tests/roundtrip_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "validator_test",
+    srcs = ["tests/validator_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "version_compatibility_test",
+    srcs = ["tests/version_compatibility_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS + [
+        "@valdi_rust_crates//:postcard",
+    ],
+)
+
+valdi_rust_codec_test(
+    name = "inspect_snapshot_test",
+    srcs = ["tests/inspect_snapshot_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+test_suite(
+    name = "codec_tests",
+    tests = [
+        ":inspect_snapshot_test",
+        ":roundtrip_test",
+        ":validator_test",
+        ":version_compatibility_test",
+    ],
+)

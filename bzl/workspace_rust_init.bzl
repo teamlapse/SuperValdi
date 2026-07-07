@@ -61,6 +61,29 @@ def valdi_initialize_rust_workspace():
     )
 
     crates_repository(
+        name = "valdi_rust_crates",
+        cargo_lockfile = "@valdi//third-party/valdi_rust:Cargo.lock",
+        lockfile = "@valdi//third-party/valdi_rust:cargo-bazel-lock.json",
+        packages = {
+            "postcard": crate.spec(default_features = False, features = ["alloc"], version = "1.1.3"),
+            "serde": crate.spec(features = ["derive"], version = "1.0.228"),
+            "serde_json": crate.spec(version = "1.0.150"),
+        },
+        render_config = render_config(default_package_name = ""),
+        supported_platform_triples = [
+            "aarch64-apple-darwin",
+            "aarch64-apple-ios",
+            "aarch64-apple-ios-sim",
+            "aarch64-linux-android",
+            "armv7-linux-androideabi",
+            "x86_64-apple-ios",
+            "x86_64-linux-android",
+            "x86_64-apple-darwin",
+            "x86_64-unknown-linux-gnu",
+        ],
+    )
+
+    crates_repository(
         name = "pngquant_crates",
         annotations = {
             "pngquant": [crate.annotation(

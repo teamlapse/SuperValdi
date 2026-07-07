@@ -8,6 +8,7 @@ from pathlib import Path
 REQUIRED_CRATES = {
     "valdi_rust_backend",
     "valdi_rust_cli",
+    "valdi_rust_codec",
     "valdi_rust_codegen",
     "valdi_rust_fixtures",
     "valdi_rust_ir",
@@ -17,10 +18,12 @@ EXPECTED_DEPENDENCIES = {
     "valdi_rust_backend": ["valdi_rust_ir"],
     "valdi_rust_cli": [
         "valdi_rust_backend",
+        "valdi_rust_codec",
         "valdi_rust_codegen",
         "valdi_rust_ir",
         "valdi_rust_runtime",
     ],
+    "valdi_rust_codec": ["valdi_rust_ir"],
     "valdi_rust_codegen": ["valdi_rust_backend", "valdi_rust_ir"],
     "valdi_rust_fixtures": ["valdi_rust_ir"],
     "valdi_rust_ir": [],
@@ -29,6 +32,7 @@ EXPECTED_DEPENDENCIES = {
 EXPECTED_OWNERS = {
     "valdi_rust_backend": "PR02",
     "valdi_rust_cli": "PR02",
+    "valdi_rust_codec": "PR05",
     "valdi_rust_codegen": "PR02",
     "valdi_rust_fixtures": "PR04",
     "valdi_rust_ir": "PR02",
@@ -47,6 +51,19 @@ EXPECTED_FIXTURE_CORPUS = {
         "//valdi_rust/tests:fixture_corpus_contract_test",
         "//valdi_rust/tests:invalid_fixture_manifest_test",
     ],
+}
+EXPECTED_CODEC_VALIDATOR = {
+    "owner": "PR05",
+    "crate": "valdi_rust_codec",
+    "test_suite_label": "//valdi_rust:codec_validator_tests",
+    "codec_test_labels": [
+        "//valdi_rust/codec:roundtrip_test",
+        "//valdi_rust/codec:validator_test",
+        "//valdi_rust/codec:version_compatibility_test",
+        "//valdi_rust/codec:inspect_snapshot_test",
+    ],
+    "cli_label": "//valdi_rust/cli:cli",
+    "dependency_repository": "@valdi_rust_crates",
 }
 
 
@@ -87,6 +104,10 @@ def main():
     fixture_corpus = graph.get("fixture_corpus")
     if fixture_corpus != EXPECTED_FIXTURE_CORPUS:
         fail(f"fixture_corpus metadata mismatch: {fixture_corpus} != {EXPECTED_FIXTURE_CORPUS}")
+
+    codec_validator = graph.get("codec_validator")
+    if codec_validator != EXPECTED_CODEC_VALIDATOR:
+        fail(f"codec_validator metadata mismatch: {codec_validator} != {EXPECTED_CODEC_VALIDATOR}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])
