@@ -4,6 +4,12 @@ import { BridgeObservable } from 'bridge_observables/src/types/BridgeObservable'
  * @ExportModule
  */
 
+// @ExportModel
+export interface CounterPayload {
+  label: string;
+  value: number;
+}
+
 // @ExportFunction
 export function count(): BridgeObservable<number>;
 
@@ -18,3 +24,6 @@ export function labelBytes(label: string): Uint8Array;
 
 // @ExportFunction
 export function payloadSize(payload: Uint8Array): number;
+
+// @ExportFunction
+export function echoPayload(payload: CounterPayload): CounterPayload;

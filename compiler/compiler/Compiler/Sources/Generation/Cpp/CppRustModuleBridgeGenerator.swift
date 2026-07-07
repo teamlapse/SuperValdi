@@ -37,6 +37,11 @@ final class CppRustModuleBridgeGenerator {
         let expression: String
     }
 
+    private struct RustHandleTypeDefinition: Hashable {
+        let name: String
+        let typeParameterCount: Int
+    }
+
     private enum RustBridgeObservableKind: Equatable {
         case double
         case bool
@@ -107,6 +112,21 @@ final class CppRustModuleBridgeGenerator {
         let identifier = name.snakeCased.replacingOccurrences(of: "-", with: "_")
         if rustKeywords.contains(identifier) {
             return "r#\(identifier)"
+        }
+        return identifier
+    }
+
+    private func rustTypeIdentifier(_ name: String) -> String {
+        let sanitized = name.replacingOccurrences(of: "[^A-Za-z0-9_]", with: "_", options: .regularExpression)
+        var identifier = sanitized.pascalCased
+        if identifier.isEmpty {
+            identifier = "ValdiRustType"
+        }
+        if identifier.first?.isNumber == true {
+            identifier = "Rust\(identifier)"
+        }
+        if rustKeywords.contains(identifier) {
+            identifier = "Rust\(identifier)"
         }
         return identifier
     }
@@ -223,7 +243,63 @@ final class CppRustModuleBridgeGenerator {
         }
     }
 
+    private func isRustHandleBackedUserType(_ type: ValdiModelPropertyType) -> Bool {
+        if type.isOptional {
+            return true
+        }
+
+        switch type.unwrappingOptional {
+        case .double, .bool, .long, .string, .bytes, .void:
+            return false
+        default:
+            return true
+        }
+    }
+
+    private func rustUserTypeName(for type: ValdiModelPropertyType) -> String {
+        switch type {
+        case .nullable(let innerType):
+            return "Optional<\(rustUserTypeName(for: innerType))>"
+        case .string:
+            return "String"
+        case .double:
+            return "Double"
+        case .bool:
+            return "Bool"
+        case .long:
+            return "Long"
+        case .array(let elementType):
+            return "Array<\(rustUserTypeName(for: elementType))>"
+        case .bytes:
+            return "Bytes"
+        case .map(let keyType, let valueType):
+            return "Map<\(rustUserTypeName(for: keyType)), \(rustUserTypeName(for: valueType))>"
+        case .any:
+            return "Any"
+        case .void:
+            return "()"
+        case .function:
+            return "Function"
+        case .object(let mapping), .enum(let mapping):
+            return rustTypeIdentifier(mapping.tsType)
+        case .genericTypeParameter(let name):
+            return rustTypeIdentifier(name)
+        case .genericObject(let mapping, let typeArguments):
+            let typeName = rustTypeIdentifier(mapping.tsType)
+            if typeArguments.isEmpty {
+                return typeName
+            }
+            return "\(typeName)<\(typeArguments.map { rustUserTypeName(for: $0) }.joined(separator: ", "))>"
+        case .promise(let typeArgument):
+            return "Promise<\(rustUserTypeName(for: typeArgument))>"
+        }
+    }
+
     private func rustUserArgumentExpression(type: ValdiModelPropertyType, name: String) -> String {
+        if isRustHandleBackedUserType(type) {
+            return "valdi_rust::ValdiRustTypedHandle::from_handle(\(name))"
+        }
+
         if type.isOptional {
             return name
         }
@@ -239,6 +315,10 @@ final class CppRustModuleBridgeGenerator {
     }
 
     private func rustUserReturnExpression(returnType: ValdiModelPropertyType, callExpression: String) -> String {
+        if isRustHandleBackedUserType(returnType) {
+            return "\(callExpression).into_handle()"
+        }
+
         switch returnType.unwrappingOptional {
         case .string:
             if returnType.isOptional {
@@ -253,6 +333,64 @@ final class CppRustModuleBridgeGenerator {
         default:
             return callExpression
         }
+    }
+
+    private func collectRustHandleTypeDefinitions(type: ValdiModelPropertyType,
+                                                  definitions: inout Set<RustHandleTypeDefinition>) {
+        switch type {
+        case .nullable(let innerType):
+            collectRustHandleTypeDefinitions(type: innerType, definitions: &definitions)
+        case .array(let elementType):
+            collectRustHandleTypeDefinitions(type: elementType, definitions: &definitions)
+        case .map(let keyType, let valueType):
+            collectRustHandleTypeDefinitions(type: keyType, definitions: &definitions)
+            collectRustHandleTypeDefinitions(type: valueType, definitions: &definitions)
+        case .function(let parameters, let returnType, _, _, _):
+            parameters.forEach { collectRustHandleTypeDefinitions(type: $0.type, definitions: &definitions) }
+            collectRustHandleTypeDefinitions(type: returnType, definitions: &definitions)
+        case .object(let mapping), .enum(let mapping):
+            let typeName = rustTypeIdentifier(mapping.tsType)
+            if !typeName.isEmpty {
+                definitions.insert(RustHandleTypeDefinition(name: typeName, typeParameterCount: 0))
+            }
+        case .genericObject(let mapping, let typeArguments):
+            let typeName = rustTypeIdentifier(mapping.tsType)
+            if !typeName.isEmpty {
+                definitions.insert(RustHandleTypeDefinition(name: typeName, typeParameterCount: typeArguments.count))
+            }
+            typeArguments.forEach { collectRustHandleTypeDefinitions(type: $0, definitions: &definitions) }
+        case .promise(let typeArgument):
+            collectRustHandleTypeDefinitions(type: typeArgument, definitions: &definitions)
+        case .string, .double, .bool, .long, .bytes, .any, .void, .genericTypeParameter:
+            return
+        }
+    }
+
+    private func rustHandleTypeDefinitionsSource(definitions: Set<RustHandleTypeDefinition>) -> String {
+        let sortedDefinitions = definitions.sorted {
+            if $0.name == $1.name {
+                return $0.typeParameterCount < $1.typeParameterCount
+            }
+            return $0.name < $1.name
+        }
+
+        return sortedDefinitions.map { definition in
+            let markerName = "\(definition.name)HandleMarker"
+            if definition.typeParameterCount == 0 {
+                return """
+                    pub enum \(markerName) {}
+                    pub type \(definition.name) = crate::valdi_rust::ValdiRustTypedHandle<\(markerName)>;
+                    """
+            }
+
+            let typeParameters = (0..<definition.typeParameterCount).map { "T\($0)" }
+            let typeParameterList = typeParameters.joined(separator: ", ")
+            let phantomType = typeParameters.count == 1 ? typeParameters[0] : "(\(typeParameterList))"
+            return """
+                pub struct \(markerName)<\(typeParameterList)>(std::marker::PhantomData<\(phantomType)>);
+                pub type \(definition.name)<\(typeParameterList)> = crate::valdi_rust::ValdiRustTypedHandle<\(markerName)<\(typeParameterList)>>;
+                """
+        }.joined(separator: "\n\n")
     }
 
     private func rustFFIReturnType(for type: ValdiModelPropertyType) -> String? {
@@ -669,10 +807,14 @@ final class CppRustModuleBridgeGenerator {
         var methodImplementations = ""
         var externDeclarations = ""
         var rustAdapterFunctions = ""
+        var rustHandleTypeDefinitions = Set<RustHandleTypeDefinition>()
 
         for property in exportedModule.model.properties {
             switch property.type {
             case .function(let parameters, let returnType, _, _, _):
+                parameters.forEach { collectRustHandleTypeDefinitions(type: $0.type, definitions: &rustHandleTypeDefinitions) }
+                collectRustHandleTypeDefinitions(type: returnType, definitions: &rustHandleTypeDefinitions)
+
                 let methodTypeParser = try typeGenerator.getTypeParser(type: property.type, namePaths: [property.name], nameAllocator: nameAllocator)
                 let propertyName = resolvePropertyName(property: property, nameAllocator: nameAllocator)
                 let rustSymbol = rustSymbolName(methodName: propertyName.methodName)
@@ -786,6 +928,8 @@ final class CppRustModuleBridgeGenerator {
 
                 """
             default:
+                collectRustHandleTypeDefinitions(type: property.type, definitions: &rustHandleTypeDefinitions)
+
                 try validateRustBoundaryType(property.type, context: "exported module property '\(property.name)'")
 
                 let typeParser = try typeGenerator.getTypeParser(type: property.type, namePaths: [property.name], nameAllocator: nameAllocator)
@@ -857,13 +1001,14 @@ final class CppRustModuleBridgeGenerator {
                          groupingPriority: 0),
             NativeSource(relativePath: cppType.includeDir,
                          filename: "\(bundleInfo.name).rust_bridge.rs",
-                         file: .data(try rustAdapterSource(functions: rustAdapterFunctions).utf8Data()),
+                         file: .data(try rustAdapterSource(typeDefinitions: rustHandleTypeDefinitionsSource(definitions: rustHandleTypeDefinitions),
+                                                           functions: rustAdapterFunctions).utf8Data()),
                          groupingIdentifier: "\(bundleInfo.name).rust_bridge.rs",
                          groupingPriority: 0)
         ]
     }
 
-    private func rustAdapterSource(functions: String) -> String {
+    private func rustAdapterSource(typeDefinitions: String, functions: String) -> String {
         return """
             // Generated Rust adapter for \(cppType.declaration.fullTypeName).
             // Rust symbols are derived from the @ExportModule TypeScript declaration.
@@ -877,6 +1022,8 @@ final class CppRustModuleBridgeGenerator {
             mod valdi_rust_module {
                 #[allow(unused_imports)]
                 use crate::valdi_rust::*;
+
+            \(typeDefinitions)
 
                 include!(env!("VALDI_RUST_USER_ROOT_PATH"));
             }

@@ -318,6 +318,29 @@ with each component converted to snake case.
 
 Primitive values use Rust aliases (`number` -> `Double`, `boolean` -> `Bool`, `long` -> `Long`). Strings use Rust `String`, and bytes use the generated `Bytes` alias (`Vec<u8>`). The generated adapter converts those Rust-authored types to and from the concrete C ABI views and owned values. Generated models, proxies, promises, callbacks, and other converter-backed native values are passed as `ValdiRustHandle` values with retain/release callbacks so Rust can explicitly control lifetime when it stores a handle beyond the current call.
 
+For handle-backed values, the generated Rust adapter emits typed opaque wrappers into the user module before including the Rust source. A TypeScript model like this:
+
+```typescript
+// @ExportModel
+export interface CounterPayload {
+  label: string;
+  value: number;
+}
+
+// @ExportFunction
+export function echoPayload(payload: CounterPayload): CounterPayload;
+```
+
+is authored in Rust using the generated `CounterPayload` type, not a raw ABI handle:
+
+```rust
+pub fn echo_payload(payload: CounterPayload) -> CounterPayload {
+    payload
+}
+```
+
+The wrapper preserves the same native value across the boundary and exposes `retain()`, unsafe `release()`, `as_handle()`, and `into_handle()` for lifetime-sensitive storage or pass-through code. Rich Rust property/method helpers for generated models are still a later parity step.
+
 For example, TypeScript declarations using strings and bytes:
 
 ```typescript

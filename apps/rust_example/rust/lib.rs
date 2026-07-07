@@ -26,3 +26,7 @@ pub fn label_bytes(label: String) -> Bytes {
 pub fn payload_size(payload: Bytes) -> Double {
     payload.len() as Double
 }
+
+pub fn echo_payload(payload: CounterPayload) -> CounterPayload {
+    payload
+}
