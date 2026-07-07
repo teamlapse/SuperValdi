@@ -1,0 +1,33 @@
+backend_operation_snapshot_v1
+operations:
+- family=create capability=view_tree
+- family=root capability=view_tree
+- family=move capability=view_tree
+- family=attribute_style capability=attributes_and_style
+- family=animation_start capability=animations
+- family=animation_end capability=animations
+- family=animation_cancel capability=animations
+- family=layout_callback capability=layout_callbacks
+- family=draw_callback capability=draw_callbacks
+- family=visibility_observer capability=visibility_observers
+- family=frame_observer capability=frame_observers
+- family=asset_load capability=asset_loading
+- family=text_measure capability=text_measurement
+- family=native_view_mount capability=native_view_mount
+- family=webview_mount capability=webview_mount
+- family=transaction_group capability=transaction_groups
+- family=destroy capability=view_tree
+fixture_tag_decisions:
+- tag=android target=android capability=native_view_mount families=native_view_mount
+- tag=dom_snapshot target=web_dom capability=webview_mount families=webview_mount
+- tag=dynamic_ui target=rust_host capability=view_tree families=create,root,transaction_group
+- tag=hot_reload target=rust_host capability=attributes_and_style families=move,attribute_style,transaction_group
+- tag=ios target=ios capability=native_view_mount families=native_view_mount
+- tag=module target=rust_host capability=transaction_groups families=transaction_group
+- tag=native_view target=rust_host capability=native_view_mount families=native_view_mount
+- tag=retained_backend target=retained_backend capability=view_tree families=create,move,destroy
+- tag=rust_backend target=rust_host capability=view_tree families=create,root,move
+- tag=screenshot target=png capability=draw_callbacks families=draw_callback
+- tag=static_png target=png capability=asset_loading families=asset_load,draw_callback
+- tag=tsx_compat target=retained_backend capability=attributes_and_style families=create,move,attribute_style
+- tag=web target=web_dom capability=webview_mount families=webview_mount

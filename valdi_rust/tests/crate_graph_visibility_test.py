@@ -65,6 +65,25 @@ EXPECTED_CODEC_VALIDATOR = {
     "cli_label": "//valdi_rust/cli:cli",
     "dependency_repository": "@valdi_rust_crates",
 }
+EXPECTED_BACKEND_OPERATIONS = {
+    "owner": "PR06",
+    "crate": "valdi_rust_backend",
+    "test_suite_label": "//valdi_rust:backend_operation_tests",
+    "backend_test_labels": [
+        "//valdi_rust/backend:backend_contract_coverage_test",
+        "//valdi_rust/backend:backend_trait_compile_test",
+        "//valdi_rust/backend:capability_validator_test",
+        "//valdi_rust/backend:mock_backend_snapshot_test",
+    ],
+    "snapshot_label": "//valdi_rust/backend:fixture_tag_backend_ops_snapshot",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "configured_rust_targets": [
+        "host",
+        "aarch64-apple-ios",
+        "aarch64-linux-android",
+    ],
+    "wasm_compile_proof": "blocked_no_rust_wasm_toolchain",
+}
 
 
 def fail(message):
@@ -108,6 +127,10 @@ def main():
     codec_validator = graph.get("codec_validator")
     if codec_validator != EXPECTED_CODEC_VALIDATOR:
         fail(f"codec_validator metadata mismatch: {codec_validator} != {EXPECTED_CODEC_VALIDATOR}")
+
+    backend_operations = graph.get("backend_operations")
+    if backend_operations != EXPECTED_BACKEND_OPERATIONS:
+        fail(f"backend_operations metadata mismatch: {backend_operations} != {EXPECTED_BACKEND_OPERATIONS}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

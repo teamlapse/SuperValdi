@@ -1,9 +1,64 @@
-load("//bzl/valdi:valdi_rust.bzl", "valdi_rust_framework_crate")
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_backend_test",
+    "valdi_rust_framework_crate",
+)
 
 valdi_rust_framework_crate(
     name = "backend",
-    srcs = ["src/lib.rs"],
+    srcs = glob(["src/**/*.rs"]),
     crate_name = "valdi_rust_backend",
     deps = ["//valdi_rust/ir"],
     visibility = ["//visibility:public"],
+)
+
+COMMON_TEST_DEPS = [
+    ":backend",
+    "//valdi_rust/codec",
+    "//valdi_rust/fixtures",
+]
+
+COMMON_TEST_DATA = [
+    "//valdi_rust/fixtures:contract_fixture_manifest",
+]
+
+filegroup(
+    name = "fixture_tag_backend_ops_snapshot",
+    srcs = ["snapshots/fixture_tag_backend_ops.snap"],
+)
+
+valdi_rust_backend_test(
+    name = "backend_contract_coverage_test",
+    srcs = ["tests/backend_contract_coverage_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_backend_test(
+    name = "backend_trait_compile_test",
+    srcs = ["tests/backend_trait_compile_test.rs"],
+    deps = [":backend"],
+)
+
+valdi_rust_backend_test(
+    name = "capability_validator_test",
+    srcs = ["tests/capability_validator_test.rs"],
+    deps = [":backend"],
+)
+
+valdi_rust_backend_test(
+    name = "mock_backend_snapshot_test",
+    srcs = ["tests/mock_backend_snapshot_test.rs"],
+    compile_data = [":fixture_tag_backend_ops_snapshot"],
+    deps = [":backend"],
+)
+
+test_suite(
+    name = "backend_operation_tests",
+    tests = [
+        ":backend_contract_coverage_test",
+        ":backend_trait_compile_test",
+        ":capability_validator_test",
+        ":mock_backend_snapshot_test",
+    ],
 )
