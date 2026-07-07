@@ -6,6 +6,8 @@ Purpose: Add Rust document loading, identity preservation, and render-op diffing
 
 Depends on: PR06
 
+Status: Complete
+
 Code boundary:
 - Rust owns document runtime, component tree, node identity, and diff.
 - No platform renderer implementation enters this PR.
@@ -18,10 +20,13 @@ Changes:
 - Add state-preserving patch foundations used by hot reload.
 
 Proof:
-- Static fixture declarations emit expected ordered backend ops.
-- Compatible identity patches preserve state slots.
-- Incompatible identity patches return rebuild-required diagnostics with source span.
+- `//valdi_rust:runtime_tree_diff_tests` covers typed runtime document loading, tree diff operation ordering, identity patch preservation, exact rebuild diagnostics, and static fixture backend-op snapshot stability.
+- `//valdi_rust/runtime:document_loader_test` proves typed static fixture declarations load into runtime documents using IR schema types.
+- `//valdi_rust/runtime:tree_diff_test` proves create/root/move/destroy ordering, keyed identity, destruction policy, and direct consumption by the PR06 mock backend.
+- `//valdi_rust/runtime:identity_patch_test` proves compatible patches preserve state slots and missing expected state mappings fail.
+- `//valdi_rust/runtime:rebuild_diagnostic_test` proves incompatible identity patches return exact rebuild-required diagnostics with source spans.
+- `//valdi_rust/runtime:static_fixture_backend_ops_snapshot_test` checks the ordered backend operation snapshot and its missing-operation negative case.
 
 Plan update:
-- Mark PR07 complete.
-- Add runtime diff receipts.
+- Marked PR07 complete.
+- Added runtime diff receipts.

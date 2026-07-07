@@ -74,6 +74,19 @@ def valdi_rust_backend_test(name, srcs, deps = [], compile_data = [], data = [],
         visibility = visibility,
     )
 
+def valdi_rust_runtime_test(name, srcs, deps = [], compile_data = [], data = [], args = [], visibility = None):
+    """Declares a Rust runtime tree/diff test with explicit fixture inputs."""
+    rust_test(
+        name = name,
+        srcs = srcs,
+        edition = "2024",
+        deps = deps,
+        compile_data = compile_data,
+        data = data,
+        args = args,
+        visibility = visibility,
+    )
+
 def valdi_rust_fixture_crate(name, srcs, crate_name = None, deps = [], compile_data = [], visibility = None):
     """Declares a Rust fixture corpus crate plus a source filegroup for lint tests."""
     rust_library(

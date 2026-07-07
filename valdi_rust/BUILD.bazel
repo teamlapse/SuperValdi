@@ -59,3 +59,10 @@ test_suite(
         "//valdi_rust/backend:backend_operation_tests",
     ],
 )
+
+test_suite(
+    name = "runtime_tree_diff_tests",
+    tests = [
+        "//valdi_rust/runtime:runtime_tree_diff_tests",
+    ],
+)
