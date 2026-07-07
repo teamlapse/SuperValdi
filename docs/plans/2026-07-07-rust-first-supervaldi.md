@@ -100,7 +100,7 @@ The stack does not implement IR first. It first creates the production replaceme
 | Order | Branch | PR Title | Step Detail | Purpose | Depends On | Ownership | Proof Point | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 00 | `codex/rust-supervaldi-00-plan` | plan: Rust-first production migration | [00-plan.md](2026-07-07-rust-first-supervaldi/steps/00-plan.md) | Add the production migration plan and separate step detail files only. | `main` | Docs | Plan PR contains docs only. | In progress |
-| 01 | `codex/rust-supervaldi-01-contract` | feat: add production replacement contract | [01-contract.md](2026-07-07-rust-first-supervaldi/steps/01-contract.md) | Create the authoritative contract consumed by every implementation PR. | PR00 | Docs + test metadata | Contract check passes. | Planned |
+| 01 | `codex/rust-supervaldi-01-contract` | feat: add production replacement contract | [01-contract.md](2026-07-07-rust-first-supervaldi/steps/01-contract.md) | Create the authoritative contract consumed by every implementation PR. | PR00 | Docs + test metadata | Contract check passes. | Complete |
 | 02 | `codex/rust-supervaldi-02-bazel-rust-foundation` | build: add Rust framework Bazel foundation | [02-bazel-rust-foundation.md](2026-07-07-rust-first-supervaldi/steps/02-bazel-rust-foundation.md) | Add the Rust workspace and Bazel foundation used by all Rust framework work. | PR01 | Bazel + Rust skeleton | `bazelisk test` passes for the Rust foundation labels. | Planned |
 | 03 | `codex/rust-supervaldi-03-ir-schema` | feat: add full Rust UI IR schema | [03-ir-schema.md](2026-07-07-rust-first-supervaldi/steps/03-ir-schema.md) | Implement Rust UI IR types for every production surface in the contract. | PR02 | Rust | Schema coverage test proves no contract row lacks a Rust type. | Planned |
 | 04 | `codex/rust-supervaldi-04-fixture-corpus` | test: add complete IR fixture corpus | [04-fixture-corpus.md](2026-07-07-rust-first-supervaldi/steps/04-fixture-corpus.md) | Add fixture coverage for every contract row and parity target. | PR03 | Rust fixtures + test metadata | Fixture coverage test proves every contract row and fixture tag pair has coverage. | Planned |
@@ -179,7 +179,7 @@ The implementation detail for each stack step lives under [steps/](2026-07-07-ru
 | PR | Status | Required Proof To Advance | Plan Update Required In That PR |
 | --- | --- | --- | --- |
 | 00 | In progress | Plan PR contains docs only. | Mark PR00 complete after merge. |
-| 01 | Planned | Contract check passes. | Mark PR01 complete. |
+| 01 | Complete | Contract check passes. | Added authoritative YAML contract, generated Markdown, and contract checker. |
 | 02 | Planned | `bazelisk test` passes for the Rust foundation labels. | Mark PR02 complete. |
 | 03 | Planned | Schema coverage test proves no contract row lacks a Rust type. | Mark PR03 complete. |
 | 04 | Planned | Fixture coverage test proves every contract row and fixture tag pair has coverage. | Mark PR04 complete. |
@@ -256,3 +256,6 @@ The implementation detail for each stack step lives under [steps/](2026-07-07-ru
 | 00 | Ambiguity wording scan | `scripts/check_rust_migration_plan_language.sh ambiguity` | Passed | No matches |
 | 00 | Missing-surface scan | `scripts/check_rust_migration_plan_language.sh coverage` | Passed | No matches |
 | 00 | Simplify review | Reuse/structure, quality/ambiguity, and ordering review agents inspect the plan diff | Passed | Findings fixed before amend |
+| 01 | Contract source | `docs/rust_migration/replacement_contract.yaml` | Added | Authoritative replacement contract with 22 surface rows |
+| 01 | Generated contract | `docs/rust_migration/replacement_contract.md` | Added | Generated from `replacement_contract.yaml` |
+| 01 | Contract check | `python3 scripts/check_rust_migration_contract.py` | Passed | Validates row IDs, owners, proof gates, fixture tags, platform targets, forbidden dependencies, and generated Markdown |
