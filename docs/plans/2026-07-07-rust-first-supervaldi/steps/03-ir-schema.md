@@ -15,13 +15,14 @@ Changes:
 - Add typed platform capability IDs and typed platform extension structs.
 - Add stable node, component, state, action, binding, module, native view, asset, source span, and diagnostic identifiers.
 - Add Rust type coverage test generated from `replacement_contract.yaml`.
-- Add Rustdoc examples for every public IR type family.
+- Add public examples for every public IR type family.
 
 Proof:
 - Schema coverage test proves no contract row lacks a Rust type.
 - Typed extension test rejects opaque platform bags.
-- Rustdoc examples compile.
+- Public examples compile through a Bazel `rust_test` target.
+- `rust_doc_test` is not a PR03 proof target because the current repo toolchain generates a runfiles-relative Apple linker path that fails before example-specific compilation.
 
 Plan update:
 - Mark PR03 complete.
-- Add schema coverage notes.
+- Add schema coverage notes and Rustdoc blocker notes.

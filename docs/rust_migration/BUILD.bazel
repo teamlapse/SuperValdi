@@ -1,0 +1,6 @@
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "replacement_contract_yaml",
+    srcs = ["replacement_contract.yaml"],
+)

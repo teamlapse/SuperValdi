@@ -33,6 +33,19 @@ py_test(
     ],
 )
 
+py_test(
+    name = "ir_schema_contract_test",
+    srcs = ["ir_schema_contract_test.py"],
+    args = [
+        "$(location //docs/rust_migration:replacement_contract_yaml)",
+        "$(locations //valdi_rust/ir:ir_sources)",
+    ],
+    data = [
+        "//docs/rust_migration:replacement_contract_yaml",
+        "//valdi_rust/ir:ir_sources",
+    ],
+)
+
 valdi_rust_platform_host_placeholder(
     name = "ios_host_placeholder",
     platform = "ios",
