@@ -84,6 +84,21 @@ EXPECTED_BACKEND_OPERATIONS = {
     ],
     "wasm_compile_proof": "blocked_no_rust_wasm_toolchain",
 }
+EXPECTED_RUNTIME_TREE_DIFF = {
+    "owner": "PR07",
+    "crate": "valdi_rust_runtime",
+    "test_suite_label": "//valdi_rust:runtime_tree_diff_tests",
+    "runtime_test_labels": [
+        "//valdi_rust/runtime:document_loader_test",
+        "//valdi_rust/runtime:tree_diff_test",
+        "//valdi_rust/runtime:identity_patch_test",
+        "//valdi_rust/runtime:rebuild_diagnostic_test",
+        "//valdi_rust/runtime:static_fixture_backend_ops_snapshot_test",
+    ],
+    "snapshot_label": "//valdi_rust/runtime:static_fixture_backend_ops_snapshot",
+    "operation_contract_crate": "valdi_rust_backend",
+    "scope": "runtime_tree_diff_only",
+}
 
 
 def fail(message):
@@ -131,6 +146,10 @@ def main():
     backend_operations = graph.get("backend_operations")
     if backend_operations != EXPECTED_BACKEND_OPERATIONS:
         fail(f"backend_operations metadata mismatch: {backend_operations} != {EXPECTED_BACKEND_OPERATIONS}")
+
+    runtime_tree_diff = graph.get("runtime_tree_diff")
+    if runtime_tree_diff != EXPECTED_RUNTIME_TREE_DIFF:
+        fail(f"runtime_tree_diff metadata mismatch: {runtime_tree_diff} != {EXPECTED_RUNTIME_TREE_DIFF}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

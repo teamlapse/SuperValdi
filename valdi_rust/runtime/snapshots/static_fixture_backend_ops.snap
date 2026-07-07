@@ -1,0 +1,17 @@
+runtime_tree_diff_snapshot_v1
+fixture=runtime.tree_diff.v1
+- family=transaction_group phase=begin group=runtime_tree_diff
+- family=create node=node.root.new kind=view
+- family=create node=node.fragment kind=view
+- family=create node=node.slot kind=view
+- family=create node=node.portal kind=view
+- family=create node=node.context kind=view
+- family=root node=node.root.new
+- family=move parent=node.root.new child=node.item.stable order=0 key=key.stable
+- family=move parent=node.root.new child=node.fragment order=1 key=key.fragment
+- family=move parent=node.fragment child=node.slot order=0 key=key.slot
+- family=move parent=node.root.new child=node.portal order=2 key=key.portal
+- family=move parent=node.root.new child=node.context order=3 key=key.context
+- family=destroy node=node.item.removed policy=preserve_for_pool
+- family=destroy node=node.root.old policy=destroy_subtree
+- family=transaction_group phase=commit group=runtime_tree_diff
