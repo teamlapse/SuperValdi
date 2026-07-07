@@ -5,6 +5,7 @@ valdi_rust_cli(
     srcs = ["src/main.rs"],
     deps = [
         "//valdi_rust/backend",
+        "//valdi_rust/codec",
         "//valdi_rust/codegen",
         "//valdi_rust/ir",
         "//valdi_rust/runtime",

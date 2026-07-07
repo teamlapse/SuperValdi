@@ -48,6 +48,19 @@ def valdi_rust_schema_test(name, srcs, deps = [], data = [], args = [], visibili
         visibility = visibility,
     )
 
+def valdi_rust_codec_test(name, srcs, deps = [], compile_data = [], data = [], args = [], visibility = None):
+    """Declares a Rust codec/validator test with explicit fixture inputs."""
+    rust_test(
+        name = name,
+        srcs = srcs,
+        edition = "2024",
+        deps = deps,
+        compile_data = compile_data,
+        data = data,
+        args = args,
+        visibility = visibility,
+    )
+
 def valdi_rust_fixture_crate(name, srcs, crate_name = None, deps = [], compile_data = [], visibility = None):
     """Declares a Rust fixture corpus crate plus a source filegroup for lint tests."""
     rust_library(

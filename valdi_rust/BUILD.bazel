@@ -45,3 +45,10 @@ test_suite(
         "//valdi_rust/tests:invalid_fixture_manifest_test",
     ],
 )
+
+test_suite(
+    name = "codec_validator_tests",
+    tests = [
+        "//valdi_rust/codec:codec_tests",
+    ],
+)
