@@ -158,8 +158,21 @@ impl<T> ValdiRustTypedHandle<T> {
         self.handle
     }
 
+    pub fn into_return_handle(self) -> ValdiRustHandle {
+        self.retain();
+        self.handle
+    }
+
     pub fn as_handle(&self) -> ValdiRustHandle {
         self.handle
+    }
+
+    pub fn retain_for_storage(&self) -> ValdiRustRetainedHandle<T> {
+        self.retain();
+        ValdiRustRetainedHandle {
+            handle: self.handle,
+            marker: PhantomData,
+        }
     }
 
     pub fn retain(&self) {
@@ -172,6 +185,43 @@ impl<T> ValdiRustTypedHandle<T> {
         unsafe {
             (self.handle.release)(self.handle.ptr);
         }
+    }
+}
+
+pub struct ValdiRustRetainedHandle<T> {
+    handle: ValdiRustHandle,
+    marker: PhantomData<T>,
+}
+
+unsafe impl<T> Send for ValdiRustRetainedHandle<T> {}
+
+impl<T> Clone for ValdiRustRetainedHandle<T> {
+    fn clone(&self) -> Self {
+        unsafe {
+            (self.handle.retain)(self.handle.ptr);
+        }
+        Self {
+            handle: self.handle,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<T> Drop for ValdiRustRetainedHandle<T> {
+    fn drop(&mut self) {
+        unsafe {
+            (self.handle.release)(self.handle.ptr);
+        }
+    }
+}
+
+impl<T> ValdiRustRetainedHandle<T> {
+    pub fn as_typed_handle(&self) -> ValdiRustTypedHandle<T> {
+        ValdiRustTypedHandle::from_handle(self.handle)
+    }
+
+    pub fn as_handle(&self) -> ValdiRustHandle {
+        self.handle
     }
 }
 

@@ -316,7 +316,7 @@ final class CppRustModuleBridgeGenerator {
 
     private func rustUserReturnExpression(returnType: ValdiModelPropertyType, callExpression: String) -> String {
         if isRustHandleBackedUserType(returnType) {
-            return "\(callExpression).into_handle()"
+            return "\(callExpression).into_return_handle()"
         }
 
         switch returnType.unwrappingOptional {
