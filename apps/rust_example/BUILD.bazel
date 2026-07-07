@@ -1,0 +1,39 @@
+load("//bzl/valdi:valdi_application.bzl", "valdi_application")
+load("//bzl/valdi:valdi_module.bzl", "valdi_module")
+load("//bzl/valdi:valdi_rust_module.bzl", "valdi_rust_native_module")
+
+valdi_rust_native_module(
+    name = "rust_native_module",
+    crate_name = "valdi_rust_example",
+    crate_root = "rust/lib.rs",
+    module = ":rust_example",
+    rust_srcs = ["rust/lib.rs"],
+)
+
+valdi_module(
+    name = "rust_example",
+    srcs = glob([
+        "**/*.ts",
+        "**/*.tsx",
+    ]) + [
+        "tsconfig.json",
+    ],
+    rust_deps = [":rust_native_module"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/valdi_modules/src/valdi/bridge_observables",
+        "//src/valdi_modules/src/valdi/valdi_core",
+        "//src/valdi_modules/src/valdi/valdi_rxjs",
+        "//src/valdi_modules/src/valdi/valdi_tsx",
+    ],
+)
+
+valdi_application(
+    name = "rust_example_app",
+    android_package = "com.snap.valdi.rust_example",
+    ios_bundle_id = "com.snap.valdi.rustexample",
+    ios_families = ["iphone"],
+    root_component_path = "App@rust_example/src/RustCounterApp",
+    title = "Valdi Rust Counter",
+    deps = [":rust_example"],
+)

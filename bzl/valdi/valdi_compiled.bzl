@@ -90,6 +90,8 @@ ValdiModuleInfo = provider(
         "ios_release_nativesrc": "generated .c file containing all the generated C code",
         "cpp_srcs": "generated .cpp files containing all the generated C++ code",
         "cpp_hdrs": "generated .hpp files containing all the generated C++ header files",
+        "cpp_rust_bridge_srcs": "generated .cpp files containing the Rust bridge adapter for @ExportModule declarations",
+        "cpp_rust_bridge_rs_srcs": "generated .rs files containing the Rust bridge adapter crate root for @ExportModule declarations",
         "ios_debug_sourcemap_archive": "A tree artifact containing archive of source and source maps",
         "ios_release_sourcemap_archive": "A tree artifact containing archive of source and source maps",
         "ios_sql_assets": "generated files for .sql files for this Valdi module",
@@ -258,6 +260,10 @@ valdi_compiled = rule(
         "web_register_native_module_id_overrides": attr.string_dict(
             default = {},
             doc = "Map of native dest path (e.g. 'valdi_core/web/DeviceBridge.js') to runtime module ID. Declared by the module that owns the web stub.",
+        ),
+        "rust_bridge_enabled": attr.bool(
+            doc = "Generate the C++ adapter that forwards @ExportModule declarations to Rust symbols.",
+            default = False,
         ),
         "disable_annotation_processing": attr.bool(
             doc = "When set to true, will not expect any Valdi annotation processing to occur for this module.",
@@ -484,7 +490,7 @@ def _invoke_valdi_compiler(ctx, module_name, module_yaml, enable_android = True,
         )
         explicit_image_asset_manifest_file = manifest_with_sizes_file
 
-    args = _prepare_arguments(ctx.actions.args(), ctx.attr.log_level[BuildSettingInfo].value, localization_mode, js_bytecode_format, config_yaml_file, explicit_input_list_file, explicit_image_asset_manifest_file, module_name, base_output_dir, disable_downloadable_assets, ctx.configuration.default_shell_env, prepared_upload_artifact_file, ctx.attr.inline_assets, valdi_copts, enable_web, disable_minify_web, code_coverage, enable_android, enable_ios, emit_debug, emit_release, compiler_output_target)
+    args = _prepare_arguments(ctx.actions.args(), ctx.attr.log_level[BuildSettingInfo].value, localization_mode, js_bytecode_format, config_yaml_file, explicit_input_list_file, explicit_image_asset_manifest_file, module_name, base_output_dir, disable_downloadable_assets, ctx.configuration.default_shell_env, prepared_upload_artifact_file, ctx.attr.inline_assets, valdi_copts, enable_web, disable_minify_web, code_coverage, enable_android, enable_ios, emit_debug, emit_release, compiler_output_target, ctx.attr.rust_bridge_enabled)
 
     compile_inputs = all_inputs + [config_yaml_file, explicit_input_list_file] + ([explicit_image_asset_manifest_file] if explicit_image_asset_manifest_file else [])
     if declared_processed_image_files:
@@ -964,6 +970,9 @@ def _get_files_output_paths(ctx, module_name, module_directory, localization_mod
     # since that tells the compiler to skip the release output path entirely.
     if emit_release:
         outputs += _get_cpp_generated_src(module_name)
+        if ctx.attr.rust_bridge_enabled:
+            outputs += _get_cpp_rust_bridge_generated_src(module_name)
+            outputs += _get_cpp_rust_bridge_rs_generated_src(module_name)
 
     # Add code coverage output file
     if code_coverage:
@@ -1260,6 +1269,18 @@ def _get_cpp_generated_src(module_name):
         base_relative_dir("cpp", "release", "src/valdi_modules/{}/{}.cpp".format(module_name, module_name)),
     ]
 
+def _get_cpp_rust_bridge_generated_src(module_name):
+    """Get generated C++ Rust bridge source file paths for single_file_codegen mode."""
+    return [
+        base_relative_dir("cpp", "release", "src/valdi_modules/{}/{}.rust_bridge.cpp".format(module_name, module_name)),
+    ]
+
+def _get_cpp_rust_bridge_rs_generated_src(module_name):
+    """Get generated Rust bridge crate root source file paths."""
+    return [
+        base_relative_dir("cpp", "release", "src/valdi_modules/{}/{}.rust_bridge.rs".format(module_name, module_name)),
+    ]
+
 def _get_ios_source_map_dir():
     return [
         base_relative_dir("ios", "debug", _IOS_SOURCE_MAPS_DIR),
@@ -1449,7 +1470,7 @@ def _declare_files(ctx, paths):
 def _declare_directories(ctx, paths):
     return [ctx.actions.declare_directory(path) for path in paths]
 
-def _prepare_arguments(args, log_level, localization_mode, js_bytecode_format, config_yaml_file, explicit_input_list_file, explicit_image_asset_manifest_file, module_name, base_output_dir, disable_downloadable_assets, shell_env, prepared_upload_artifact_file, inline_assets, additional_copts, enable_web, disable_minify_web, code_coverage, enable_android = True, enable_ios = True, emit_debug = True, emit_release = True, compiler_output_target = "all"):
+def _prepare_arguments(args, log_level, localization_mode, js_bytecode_format, config_yaml_file, explicit_input_list_file, explicit_image_asset_manifest_file, module_name, base_output_dir, disable_downloadable_assets, shell_env, prepared_upload_artifact_file, inline_assets, additional_copts, enable_web, disable_minify_web, code_coverage, enable_android = True, enable_ios = True, emit_debug = True, emit_release = True, compiler_output_target = "all", rust_bridge_enabled = False):
     """ Prepare arguments for the Valdi compiler invocation. """
 
     args.use_param_file("@%s", use_always = True)
@@ -1549,6 +1570,8 @@ def _prepare_arguments(args, log_level, localization_mode, js_bytecode_format, c
     args.add("--config-value", "cpp.output.debug_path=debug")
     args.add("--config-value", "cpp.output.release_path=release")
     args.add("--config-value", "cpp.output.metadata_path=.")
+    if rust_bridge_enabled:
+        args.add("--config-value", "cpp.rust_bridge_enabled=true")
 
     # Web
     if enable_web:
@@ -1826,6 +1849,8 @@ def _create_valdi_module_info(ctx, module_name, module_yaml, module_definition, 
         # invoked with --output-target debug (code coverage, or output_flavor=debug).
         cpp_srcs = _extract_cpp_generated_srcs(outputs, module_name, single_file_codegen) if emit_release else None,
         cpp_hdrs = _extract_cpp_generated_hdrs(outputs, module_name, single_file_codegen) if emit_release else None,
+        cpp_rust_bridge_srcs = _extract_cpp_rust_bridge_generated_srcs(outputs, module_name) if emit_release and ctx.attr.rust_bridge_enabled else None,
+        cpp_rust_bridge_rs_srcs = _extract_cpp_rust_bridge_rs_generated_srcs(outputs, module_name) if emit_release and ctx.attr.rust_bridge_enabled else None,
 
         # web outputs
         protodecl_srcs = ctx.files.protodecl_srcs,
@@ -2071,6 +2096,16 @@ def _extract_cpp_generated_hdrs(outputs, module_name, single_file_codegen):
     if len(src_to_check) != 1:
         fail("Expecting to find exactly 1 .hpp file. Found {}".format(srcs))
     found = [output for output in outputs if output.path.endswith(src_to_check[0])]
+    return found[0] if found else None
+
+def _extract_cpp_rust_bridge_generated_srcs(outputs, module_name):
+    srcs = _get_cpp_rust_bridge_generated_src(module_name)
+    found = [output for output in outputs if output.path.endswith(srcs[0])]
+    return found[0] if found else None
+
+def _extract_cpp_rust_bridge_rs_generated_srcs(outputs, module_name):
+    srcs = _get_cpp_rust_bridge_rs_generated_src(module_name)
+    found = [output for output in outputs if output.path.endswith(srcs[0])]
     return found[0] if found else None
 
 def _extract_android_debug_sourcemaps(module_name, outputs):

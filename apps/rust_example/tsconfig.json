@@ -1,0 +1,24 @@
+{
+  "extends": "../../modules/_configs/base.tsconfig.json",
+  "compilerOptions": {
+    "types": ["../../modules/types/Long", "../../modules/types/globals"],
+    "paths": {
+      "bridge_observables/*": [
+        "../../src/valdi_modules/src/valdi/bridge_observables/*"
+      ],
+      "rust_example/*": ["./*"],
+      "valdi_core/*": [
+        "../../src/valdi_modules/src/valdi/valdi_core/*"
+      ],
+      "valdi_core": [
+        "../../src/valdi_modules/src/valdi/valdi_core/src/tslib.d.ts"
+      ],
+      "valdi_rxjs/*": [
+        "../../src/valdi_modules/src/valdi/valdi_rxjs/*"
+      ],
+      "valdi_tsx/*": [
+        "../../src/valdi_modules/src/valdi/valdi_tsx/*"
+      ],
+    }
+  }
+}

@@ -77,6 +77,8 @@ struct ValdiProjectConfig {
 
     let cppImportPathPrefix: String?
 
+    let cppRustBridgeEnabled: Bool
+
     /**
      If set for the project, artifacts will not be uploaded, they
      will be stored as this location instead.
@@ -241,6 +243,7 @@ struct ValdiProjectConfig {
 
         let cppDefaultClassPrefix = cppConfig?["default_class_prefix"]?.string
         let cppImportPathPrefix = cppConfig?["import_path_prefix"]?.string
+        let cppRustBridgeEnabled = cppConfig?["rust_bridge_enabled"]?.bool ?? false
 
         let ignoredFiles = try config["ignored_files"]?.array().compactMap { try $0.string?.resolvingVariables(environment) } ?? []
 
@@ -348,6 +351,7 @@ struct ValdiProjectConfig {
                                                   androidDefaultClassPath: androidDefaultClassPath,
                                                   cppDefaultClassPrefix: cppDefaultClassPrefix,
                                                   cppImportPathPrefix: cppImportPathPrefix,
+                                                  cppRustBridgeEnabled: cppRustBridgeEnabled,
                                                   preparedUploadArtifactOutput: nil,
                                                   buildDirectoryURL: buildDirectoryURL,
                                                   generatedTsDirectoryURL: generatedTsDirectoryURL,

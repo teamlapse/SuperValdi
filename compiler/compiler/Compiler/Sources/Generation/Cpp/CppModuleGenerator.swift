@@ -99,6 +99,14 @@ final class CppModuleGenerator {
                                    file: .data(try generator.impl.content.indented.utf8Data()),
                                    groupingIdentifier: "\(bundleInfo.name).cpp", groupingPriority: 0))
 
+        if bundleInfo.projectConfig.cppRustBridgeEnabled {
+            let rustBridgeGenerator = CppRustModuleBridgeGenerator(bundleInfo: bundleInfo,
+                                                                   cppType: cppType,
+                                                                   exportedModule: exportedModule,
+                                                                   sourceFileName: sourceFileName)
+            output += try rustBridgeGenerator.write()
+        }
+
         return output
     }
 }
