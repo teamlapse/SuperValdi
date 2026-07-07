@@ -1,0 +1,29 @@
+load("//bzl/valdi:valdi_rust.bzl", "valdi_rust_crate_graph")
+
+package(default_visibility = ["//visibility:public"])
+
+valdi_rust_crate_graph(
+    name = "crate_graph",
+    src = "crate_graph.json",
+    visibility = ["//visibility:public"],
+)
+
+test_suite(
+    name = "foundation_tests",
+    tests = [
+        "//valdi_rust/tests:android_empty_fixture",
+        "//valdi_rust/tests:android_host_placeholder",
+        "//valdi_rust/tests:crate_graph_visibility_test",
+        "//valdi_rust/tests:forbidden_public_api_test",
+        "//valdi_rust/tests:ios_empty_fixture",
+        "//valdi_rust/tests:ios_host_placeholder",
+        "//valdi_rust/tests:js_dom_generated_glue_placeholder",
+        "//valdi_rust/tests:kotlin_generated_glue_placeholder",
+        "//valdi_rust/tests:png_empty_fixture",
+        "//valdi_rust/tests:png_host_placeholder",
+        "//valdi_rust/tests:rust_host_generated_glue_placeholder",
+        "//valdi_rust/tests:swift_generated_glue_placeholder",
+        "//valdi_rust/tests:web_empty_fixture",
+        "//valdi_rust/tests:web_host_placeholder",
+    ],
+)

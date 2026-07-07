@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "owner_pr": "PR02",
+  "crates": [
+    {
+      "name": "valdi_rust_ir",
+      "label": "//valdi_rust/ir:ir",
+      "owner": "PR02",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_framework_foundation",
+      "dependencies": []
+    },
+    {
+      "name": "valdi_rust_backend",
+      "label": "//valdi_rust/backend:backend",
+      "owner": "PR02",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_backend_traits_foundation",
+      "dependencies": ["valdi_rust_ir"]
+    },
+    {
+      "name": "valdi_rust_runtime",
+      "label": "//valdi_rust/runtime:runtime",
+      "owner": "PR02",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_runtime_foundation",
+      "dependencies": ["valdi_rust_backend", "valdi_rust_ir"]
+    },
+    {
+      "name": "valdi_rust_codegen",
+      "label": "//valdi_rust/codegen:codegen",
+      "owner": "PR02",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_codegen_support_foundation",
+      "dependencies": ["valdi_rust_backend", "valdi_rust_ir"]
+    },
+    {
+      "name": "valdi_rust_cli",
+      "label": "//valdi_rust/cli:cli",
+      "owner": "PR02",
+      "visibility": "public_framework_tool",
+      "public_api_boundary": "rust_tooling_entrypoint",
+      "dependencies": [
+        "valdi_rust_backend",
+        "valdi_rust_codegen",
+        "valdi_rust_ir",
+        "valdi_rust_runtime"
+      ]
+    }
+  ],
+  "platform_host_placeholders": [
+    {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
+    {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
+    {"platform": "web", "label": "//valdi_rust/tests:web_host_placeholder", "owner": "PR02"},
+    {"platform": "png", "label": "//valdi_rust/tests:png_host_placeholder", "owner": "PR02"}
+  ],
+  "generated_glue_placeholders": [
+    {"target": "swift", "label": "//valdi_rust/tests:swift_generated_glue_placeholder", "owner": "PR02"},
+    {"target": "kotlin", "label": "//valdi_rust/tests:kotlin_generated_glue_placeholder", "owner": "PR02"},
+    {"target": "js_dom", "label": "//valdi_rust/tests:js_dom_generated_glue_placeholder", "owner": "PR02"},
+    {"target": "rust_host", "label": "//valdi_rust/tests:rust_host_generated_glue_placeholder", "owner": "PR02"}
+  ],
+  "fixture_test_labels": [
+    {"platform": "ios", "label": "//valdi_rust/tests:ios_empty_fixture", "owner": "PR02"},
+    {"platform": "android", "label": "//valdi_rust/tests:android_empty_fixture", "owner": "PR02"},
+    {"platform": "web", "label": "//valdi_rust/tests:web_empty_fixture", "owner": "PR02"},
+    {"platform": "png", "label": "//valdi_rust/tests:png_empty_fixture", "owner": "PR02"}
+  ],
+  "public_api_lint": {
+    "source_labels": [
+      "//valdi_rust/backend:backend_sources",
+      "//valdi_rust/cli:cli_sources",
+      "//valdi_rust/codegen:codegen_sources",
+      "//valdi_rust/ir:ir_sources",
+      "//valdi_rust/runtime:runtime_sources"
+    ],
+    "disallowed_public_metadata_terms": [
+      "C bridge",
+      "C++ bridge",
+      "app_facing_c_bridge",
+      "app_facing_cpp_bridge",
+      "c_abi_public_api",
+      "c_bridge",
+      "cpp_bridge",
+      "cpp_renderer_adapter",
+      "transition_adapter_public_api"
+    ],
+    "disallowed_rust_source_terms": [
+      "extern \"C\"",
+      "cxx::",
+      "bindgen",
+      "cbindgen",
+      "std::ffi::",
+      "libc::"
+    ]
+  }
+}

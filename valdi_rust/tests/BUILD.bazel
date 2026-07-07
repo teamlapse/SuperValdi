@@ -1,0 +1,94 @@
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_fixture_test_label",
+    "valdi_rust_generated_glue_placeholder",
+    "valdi_rust_platform_host_placeholder",
+)
+
+py_test(
+    name = "crate_graph_visibility_test",
+    srcs = ["crate_graph_visibility_test.py"],
+    args = ["$(location //valdi_rust:crate_graph.json)"],
+    data = ["//valdi_rust:crate_graph.json"],
+)
+
+py_test(
+    name = "forbidden_public_api_test",
+    srcs = ["forbidden_public_api_test.py"],
+    args = [
+        "$(location //valdi_rust:crate_graph.json)",
+        "$(locations //valdi_rust/backend:backend_sources)",
+        "$(locations //valdi_rust/cli:cli_sources)",
+        "$(locations //valdi_rust/codegen:codegen_sources)",
+        "$(locations //valdi_rust/ir:ir_sources)",
+        "$(locations //valdi_rust/runtime:runtime_sources)",
+    ],
+    data = [
+        "//valdi_rust:crate_graph.json",
+        "//valdi_rust/backend:backend_sources",
+        "//valdi_rust/cli:cli_sources",
+        "//valdi_rust/codegen:codegen_sources",
+        "//valdi_rust/ir:ir_sources",
+        "//valdi_rust/runtime:runtime_sources",
+    ],
+)
+
+valdi_rust_platform_host_placeholder(
+    name = "ios_host_placeholder",
+    platform = "ios",
+)
+
+valdi_rust_platform_host_placeholder(
+    name = "android_host_placeholder",
+    platform = "android",
+)
+
+valdi_rust_platform_host_placeholder(
+    name = "web_host_placeholder",
+    platform = "web",
+)
+
+valdi_rust_platform_host_placeholder(
+    name = "png_host_placeholder",
+    platform = "png",
+)
+
+valdi_rust_generated_glue_placeholder(
+    name = "swift_generated_glue_placeholder",
+    target = "swift",
+)
+
+valdi_rust_generated_glue_placeholder(
+    name = "kotlin_generated_glue_placeholder",
+    target = "kotlin",
+)
+
+valdi_rust_generated_glue_placeholder(
+    name = "js_dom_generated_glue_placeholder",
+    target = "js_dom",
+)
+
+valdi_rust_generated_glue_placeholder(
+    name = "rust_host_generated_glue_placeholder",
+    target = "rust_host",
+)
+
+valdi_rust_fixture_test_label(
+    name = "ios_empty_fixture",
+    platform = "ios",
+)
+
+valdi_rust_fixture_test_label(
+    name = "android_empty_fixture",
+    platform = "android",
+)
+
+valdi_rust_fixture_test_label(
+    name = "web_empty_fixture",
+    platform = "web",
+)
+
+valdi_rust_fixture_test_label(
+    name = "png_empty_fixture",
+    platform = "png",
+)

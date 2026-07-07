@@ -2,6 +2,8 @@
 
 Branch: `codex/rust-supervaldi-02-bazel-rust-foundation`
 
+Status: Complete
+
 Purpose: Add the Rust workspace and Bazel foundation used by all Rust framework work.
 
 Depends on: PR01
@@ -21,6 +23,7 @@ Proof:
 - `bazelisk test` passes for the Rust foundation labels.
 - Generated crate graph lists every crate owner and visibility boundary.
 - Public API lint passes.
+- `bazelisk build` passes for the Rust foundation crate labels.
 
 Plan update:
 - Mark PR02 complete.

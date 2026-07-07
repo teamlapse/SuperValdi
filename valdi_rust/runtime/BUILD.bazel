@@ -1,0 +1,12 @@
+load("//bzl/valdi:valdi_rust.bzl", "valdi_rust_framework_crate")
+
+valdi_rust_framework_crate(
+    name = "runtime",
+    srcs = ["src/lib.rs"],
+    crate_name = "valdi_rust_runtime",
+    deps = [
+        "//valdi_rust/backend",
+        "//valdi_rust/ir",
+    ],
+    visibility = ["//visibility:public"],
+)
