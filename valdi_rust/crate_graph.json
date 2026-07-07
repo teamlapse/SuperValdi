@@ -46,8 +46,28 @@
         "valdi_rust_ir",
         "valdi_rust_runtime"
       ]
+    },
+    {
+      "name": "valdi_rust_fixtures",
+      "label": "//valdi_rust/fixtures:fixtures",
+      "owner": "PR04",
+      "visibility": "public_test_fixture_crate",
+      "public_api_boundary": "rust_fixture_corpus_test_metadata",
+      "dependencies": ["valdi_rust_ir"]
     }
   ],
+  "fixture_corpus": {
+    "owner": "PR04",
+    "crate": "valdi_rust_fixtures",
+    "manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "invalid_manifest_label": "//valdi_rust/fixtures:invalid_fixture_manifest",
+    "serialized_fixture_label": "//valdi_rust/fixtures:serialized_fixtures",
+    "test_suite_label": "//valdi_rust:fixture_corpus_tests",
+    "coverage_test_labels": [
+      "//valdi_rust/tests:fixture_corpus_contract_test",
+      "//valdi_rust/tests:invalid_fixture_manifest_test"
+    ]
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
@@ -71,6 +91,7 @@
       "//valdi_rust/backend:backend_sources",
       "//valdi_rust/cli:cli_sources",
       "//valdi_rust/codegen:codegen_sources",
+      "//valdi_rust/fixtures:fixtures_sources",
       "//valdi_rust/ir:ir_sources",
       "//valdi_rust/runtime:runtime_sources"
     ],

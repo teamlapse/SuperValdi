@@ -1,0 +1,56 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.hot_reload.v1",
+  "contract_row_id": "hot_reload",
+  "surface": "Hot reload",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "hot_reload",
+    "retained_backend",
+    "rust_backend",
+    "module",
+    "native_view",
+    "dynamic_ui"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR11",
+      "PR12"
+    ],
+    "proof_prs": [
+      "PR11",
+      "PR12",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/hot_reload.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "hot_reload",
+    "root_node_id": "node.hot_reload.root",
+    "component_id": "component.hot_reload",
+    "coverage_tokens": [
+      "patch identity",
+      "source spans",
+      "compatibility",
+      "assets",
+      "bindings",
+      "actions",
+      "module refs",
+      "native view refs"
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.native_views.v1",
+  "contract_row_id": "native_views",
+  "surface": "Native views",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "native_view",
+    "screenshot",
+    "static_png",
+    "retained_backend",
+    "rust_backend"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "png",
+    "swift",
+    "kotlin",
+    "js_dom",
+    "cpp_transition",
+    "ts_compatibility"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR22",
+      "PR23",
+      "PR34"
+    ],
+    "proof_prs": [
+      "PR23",
+      "PR34",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/native_views.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "native_views",
+    "root_node_id": "node.native_views.root",
+    "component_id": "component.native_views",
+    "coverage_tokens": [
+      "Rust contracts",
+      "typed attrs",
+      "typed events",
+      "lifecycle",
+      "measurement",
+      "reuse",
+      "platform extensions",
+      "accessibility",
+      "fallback"
+    ]
+  }
+}

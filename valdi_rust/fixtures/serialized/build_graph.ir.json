@@ -1,0 +1,62 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.build_graph.v1",
+  "contract_row_id": "build_graph",
+  "surface": "Build graph",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "module",
+    "native_view",
+    "tsx_compat"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host",
+    "cpp_transition",
+    "ts_compatibility"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR02",
+      "PR14",
+      "PR15",
+      "PR16",
+      "PR18",
+      "PR19",
+      "PR20",
+      "PR22",
+      "PR23",
+      "PR37",
+      "PR38"
+    ],
+    "proof_prs": [
+      "PR02",
+      "PR37",
+      "PR38"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/build_graph.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "build_graph",
+    "root_node_id": "node.build_graph.root",
+    "component_id": "component.build_graph",
+    "coverage_tokens": [
+      "Bazel targets",
+      "crate graph",
+      "generated glue",
+      "platform app targets",
+      "compatibility labels",
+      "forbidden dependency checks"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.png_backend.v1",
+  "contract_row_id": "png_backend",
+  "surface": "PNG backend",
+  "fixture_tags": [
+    "static_png",
+    "screenshot",
+    "native_view"
+  ],
+  "platform_targets": [
+    "png"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR17",
+      "PR25"
+    ],
+    "proof_prs": [
+      "PR17",
+      "PR25",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/png_backend.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "png_backend",
+    "root_node_id": "node.png_backend.root",
+    "component_id": "component.png_backend",
+    "coverage_tokens": [
+      "layout snapshot",
+      "display list",
+      "text",
+      "image",
+      "native/webview fallback",
+      "accessibility debug metadata"
+    ]
+  }
+}

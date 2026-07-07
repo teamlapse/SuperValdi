@@ -1,0 +1,49 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.ts_compatibility.v1",
+  "contract_row_id": "ts_compatibility",
+  "surface": "TS compatibility",
+  "fixture_tags": [
+    "tsx_compat",
+    "ios",
+    "android",
+    "web",
+    "retained_backend"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "ts_compatibility"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR10",
+      "PR36",
+      "PR38"
+    ],
+    "proof_prs": [
+      "PR10",
+      "PR36",
+      "PR38"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/ts_compatibility.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "ts_compatibility",
+    "root_node_id": "node.ts_compatibility.root",
+    "component_id": "component.ts_compatibility",
+    "coverage_tokens": [
+      "TSX coverage map",
+      "direct renderer compatibility",
+      "TSX-to-IR equivalence",
+      "no Rust-path TS dependency"
+    ]
+  }
+}

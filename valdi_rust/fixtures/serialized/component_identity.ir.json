@@ -1,0 +1,55 @@
+{
+  "fixture_schema_version": 1,
+  "fixture_id": "contract.component_identity.v1",
+  "contract_row_id": "component_identity",
+  "surface": "Component identity",
+  "fixture_tags": [
+    "ios",
+    "android",
+    "web",
+    "retained_backend",
+    "rust_backend",
+    "hot_reload",
+    "dynamic_ui"
+  ],
+  "platform_targets": [
+    "ios",
+    "android",
+    "web",
+    "rust_host"
+  ],
+  "metadata": {
+    "owner_prs": [
+      "PR01",
+      "PR03",
+      "PR07",
+      "PR11",
+      "PR13"
+    ],
+    "proof_prs": [
+      "PR07",
+      "PR11",
+      "PR36"
+    ],
+    "serialized_artifact_path": "valdi_rust/fixtures/serialized/component_identity.ir.json"
+  },
+  "ir_debug": {
+    "schema_version": {
+      "id": "ui_ir",
+      "major": 1,
+      "minor": 0
+    },
+    "contract_surface": "component_identity",
+    "root_node_id": "node.component_identity.root",
+    "component_id": "component.component_identity",
+    "coverage_tokens": [
+      "component IDs",
+      "node IDs",
+      "keys",
+      "state identity",
+      "source spans",
+      "hot reload identity",
+      "dynamic identity"
+    ]
+  }
+}

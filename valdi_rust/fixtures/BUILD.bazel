@@ -1,0 +1,30 @@
+load("//bzl/valdi:valdi_rust.bzl", "valdi_rust_fixture_crate")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "contract_fixture_manifest",
+    srcs = ["contract_fixture_manifest.json"],
+)
+
+filegroup(
+    name = "invalid_fixture_manifest",
+    srcs = ["invalid_fixture_manifest.json"],
+)
+
+filegroup(
+    name = "serialized_fixtures",
+    srcs = glob(["serialized/*.ir.json"]),
+)
+
+valdi_rust_fixture_crate(
+    name = "fixtures",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "valdi_rust_fixtures",
+    compile_data = [
+        ":contract_fixture_manifest",
+        ":invalid_fixture_manifest",
+        ":serialized_fixtures",
+    ],
+    deps = ["//valdi_rust/ir:ir"],
+)

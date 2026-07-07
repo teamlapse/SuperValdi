@@ -9,6 +9,7 @@ REQUIRED_CRATES = {
     "valdi_rust_backend",
     "valdi_rust_cli",
     "valdi_rust_codegen",
+    "valdi_rust_fixtures",
     "valdi_rust_ir",
     "valdi_rust_runtime",
 }
@@ -21,11 +22,32 @@ EXPECTED_DEPENDENCIES = {
         "valdi_rust_runtime",
     ],
     "valdi_rust_codegen": ["valdi_rust_backend", "valdi_rust_ir"],
+    "valdi_rust_fixtures": ["valdi_rust_ir"],
     "valdi_rust_ir": [],
     "valdi_rust_runtime": ["valdi_rust_backend", "valdi_rust_ir"],
 }
+EXPECTED_OWNERS = {
+    "valdi_rust_backend": "PR02",
+    "valdi_rust_cli": "PR02",
+    "valdi_rust_codegen": "PR02",
+    "valdi_rust_fixtures": "PR04",
+    "valdi_rust_ir": "PR02",
+    "valdi_rust_runtime": "PR02",
+}
 REQUIRED_PLATFORMS = {"android", "ios", "png", "web"}
 REQUIRED_GLUE_TARGETS = {"js_dom", "kotlin", "rust_host", "swift"}
+EXPECTED_FIXTURE_CORPUS = {
+    "owner": "PR04",
+    "crate": "valdi_rust_fixtures",
+    "manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "invalid_manifest_label": "//valdi_rust/fixtures:invalid_fixture_manifest",
+    "serialized_fixture_label": "//valdi_rust/fixtures:serialized_fixtures",
+    "test_suite_label": "//valdi_rust:fixture_corpus_tests",
+    "coverage_test_labels": [
+        "//valdi_rust/tests:fixture_corpus_contract_test",
+        "//valdi_rust/tests:invalid_fixture_manifest_test",
+    ],
+}
 
 
 def fail(message):
@@ -52,8 +74,8 @@ def main():
         for key in ["label", "owner", "visibility", "public_api_boundary", "dependencies"]:
             if key not in crate:
                 fail(f"{crate.get('name')} missing {key}")
-        if crate["owner"] != "PR02":
-            fail(f"{crate['name']} owner must be PR02")
+        if crate["owner"] != EXPECTED_OWNERS[crate["name"]]:
+            fail(f"{crate['name']} owner must be {EXPECTED_OWNERS[crate['name']]}")
         if not crate["public_api_boundary"].startswith("rust_"):
             fail(f"{crate['name']} must declare a Rust public API boundary")
         if crate["dependencies"] != EXPECTED_DEPENDENCIES[crate["name"]]:
@@ -61,6 +83,10 @@ def main():
                 f"{crate['name']} dependency mismatch: "
                 f"{crate['dependencies']} != {EXPECTED_DEPENDENCIES[crate['name']]}"
             )
+
+    fixture_corpus = graph.get("fixture_corpus")
+    if fixture_corpus != EXPECTED_FIXTURE_CORPUS:
+        fail(f"fixture_corpus metadata mismatch: {fixture_corpus} != {EXPECTED_FIXTURE_CORPUS}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

@@ -48,6 +48,24 @@ def valdi_rust_schema_test(name, srcs, deps = [], data = [], args = [], visibili
         visibility = visibility,
     )
 
+def valdi_rust_fixture_crate(name, srcs, crate_name = None, deps = [], compile_data = [], visibility = None):
+    """Declares a Rust fixture corpus crate plus a source filegroup for lint tests."""
+    rust_library(
+        name = name,
+        srcs = srcs,
+        crate_name = crate_name or _crate_name(name),
+        edition = "2024",
+        deps = deps,
+        compile_data = compile_data,
+        visibility = visibility,
+    )
+
+    native.filegroup(
+        name = name + "_sources",
+        srcs = srcs,
+        visibility = ["//valdi_rust/tests:__pkg__"],
+    )
+
 def valdi_rust_crate_graph(name, src, visibility = None):
     """Publishes the Rust foundation crate graph metadata."""
     native.filegroup(
