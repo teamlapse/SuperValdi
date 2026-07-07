@@ -74,6 +74,49 @@ final class CppRustModuleBridgeGeneratorTests: XCTestCase {
         XCTAssertTrue(cppSource.contains("modelBox->value.setLabel("))
     }
 
+    func testUnsupportedNativeObjectWithoutConverterIsRejected() throws {
+        let bundleInfo = try makeRustTestBundleInfo()
+        let moduleCppType = makeCppType(name: "RustTestModule", bundleInfo: bundleInfo)
+        let foreignCppType = makeCppType(name: "ForeignNative", bundleInfo: bundleInfo)
+        let foreignMapping = ValdiNodeClassMapping(tsType: "ForeignNative",
+                                                   iosType: nil,
+                                                   androidClassName: nil,
+                                                   cppType: foreignCppType,
+                                                   kind: .class)
+        let foreignType = ValdiModelPropertyType.object(foreignMapping)
+        let moduleModel = ValdiModel(tsType: "RustTestModule",
+                                     iosType: nil,
+                                     androidClassName: nil,
+                                     cppType: moduleCppType,
+                                     typeParameters: nil,
+                                     exportAsInterface: true,
+                                     legacyConstructors: false,
+                                     usePublicFields: false,
+                                     comments: nil,
+                                     properties: [
+                                        modelProperty(name: "useForeign",
+                                                      type: .function(parameters: [
+                                                        modelProperty(name: "value", type: foreignType),
+                                                      ],
+                                                      returnType: .void,
+                                                      isSingleCall: false,
+                                                      shouldCallOnWorkerThread: false,
+                                                      allowSyncCall: false)),
+                                     ])
+        let exportedModule = ExportedModule(model: moduleModel, modulePath: "rust_test/RustCounter")
+        let generator = CppRustModuleBridgeGenerator(bundleInfo: bundleInfo,
+                                                     cppType: moduleCppType,
+                                                     exportedModule: exportedModule,
+                                                     sourceFileName: GeneratedSourceFilename(filename: "RustCounter.d.ts",
+                                                                                             symbolName: "RustTestModule"))
+
+        XCTAssertThrowsError(try generator.write()) { error in
+            XCTAssertTrue(error.legibleLocalizedDescription.contains(
+                "Rust native modules do not support exported module function 'useForeign' function parameter 'value' type 'ForeignNative'"
+            ))
+        }
+    }
+
     private func makeRustTestBundleInfo() throws -> CompilationItem.BundleInfo {
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
