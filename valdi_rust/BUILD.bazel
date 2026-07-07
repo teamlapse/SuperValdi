@@ -27,3 +27,13 @@ test_suite(
         "//valdi_rust/tests:web_host_placeholder",
     ],
 )
+
+test_suite(
+    name = "ir_schema_tests",
+    tests = [
+        "//valdi_rust/ir:public_examples_test",
+        "//valdi_rust/ir:schema_coverage_test",
+        "//valdi_rust/ir:typed_extensions_test",
+        "//valdi_rust/tests:ir_schema_contract_test",
+    ],
+)

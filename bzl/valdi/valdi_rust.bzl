@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 def _crate_name(name):
     return name.replace("-", "_")
@@ -34,6 +34,18 @@ def valdi_rust_cli(name, srcs, deps = [], visibility = None):
         name = name + "_sources",
         srcs = srcs,
         visibility = ["//valdi_rust/tests:__pkg__"],
+    )
+
+def valdi_rust_schema_test(name, srcs, deps = [], data = [], args = [], visibility = None):
+    """Declares a dependency-free Rust schema test."""
+    rust_test(
+        name = name,
+        srcs = srcs,
+        edition = "2024",
+        deps = deps,
+        data = data,
+        args = args,
+        visibility = visibility,
     )
 
 def valdi_rust_crate_graph(name, src, visibility = None):
