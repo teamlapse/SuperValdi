@@ -1,0 +1,99 @@
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_codec_test",
+    "valdi_rust_framework_crate",
+)
+
+valdi_rust_framework_crate(
+    name = "dynamic_ui",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "valdi_rust_dynamic_ui",
+    deps = [
+        "//valdi_rust/backend",
+        "//valdi_rust/codec",
+        "//valdi_rust/fixtures",
+        "//valdi_rust/ir",
+        "//valdi_rust/runtime",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+COMMON_TEST_DEPS = [
+    ":dynamic_ui",
+    "//valdi_rust/backend",
+    "//valdi_rust/codec",
+    "//valdi_rust/fixtures",
+    "//valdi_rust/ir",
+    "//valdi_rust/runtime",
+]
+
+COMMON_TEST_DATA = [
+    "//docs/rust_migration:replacement_contract_yaml",
+]
+
+filegroup(
+    name = "dynamic_ui_trace_snapshot",
+    srcs = ["snapshots/dynamic_ui_trace.snap"],
+)
+
+filegroup(
+    name = "dynamic_ui_invalid_diagnostics_snapshot",
+    srcs = ["snapshots/dynamic_ui_invalid_diagnostics.snap"],
+)
+
+valdi_rust_codec_test(
+    name = "dynamic_producer_test",
+    srcs = ["tests/dynamic_producer_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "json_binary_loader_test",
+    srcs = ["tests/json_binary_loader_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "capability_negotiation_test",
+    srcs = ["tests/capability_negotiation_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "source_trust_diagnostic_test",
+    srcs = ["tests/source_trust_diagnostic_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "runtime_validator_integration_test",
+    srcs = ["tests/runtime_validator_integration_test.rs"],
+    compile_data = COMMON_TEST_DATA,
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_codec_test(
+    name = "snapshot_test",
+    srcs = ["tests/snapshot_test.rs"],
+    compile_data = COMMON_TEST_DATA + [
+        ":dynamic_ui_invalid_diagnostics_snapshot",
+        ":dynamic_ui_trace_snapshot",
+    ],
+    deps = COMMON_TEST_DEPS,
+)
+
+test_suite(
+    name = "dynamic_ui_tests",
+    tests = [
+        ":capability_negotiation_test",
+        ":dynamic_producer_test",
+        ":json_binary_loader_test",
+        ":runtime_validator_integration_test",
+        ":snapshot_test",
+        ":source_trust_diagnostic_test",
+    ],
+)

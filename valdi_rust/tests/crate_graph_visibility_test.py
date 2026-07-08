@@ -11,6 +11,7 @@ REQUIRED_CRATES = {
     "valdi_rust_codec",
     "valdi_rust_codegen",
     "valdi_rust_dsl",
+    "valdi_rust_dynamic_ui",
     "valdi_rust_fixtures",
     "valdi_rust_hot_reload",
     "valdi_rust_ir",
@@ -28,6 +29,13 @@ EXPECTED_DEPENDENCIES = {
     "valdi_rust_codec": ["valdi_rust_ir"],
     "valdi_rust_codegen": ["valdi_rust_backend", "valdi_rust_ir"],
     "valdi_rust_dsl": ["valdi_rust_ir"],
+    "valdi_rust_dynamic_ui": [
+        "valdi_rust_backend",
+        "valdi_rust_codec",
+        "valdi_rust_fixtures",
+        "valdi_rust_ir",
+        "valdi_rust_runtime",
+    ],
     "valdi_rust_fixtures": ["valdi_rust_ir"],
     "valdi_rust_hot_reload": [
         "valdi_rust_backend",
@@ -44,6 +52,7 @@ EXPECTED_OWNERS = {
     "valdi_rust_codec": "PR05",
     "valdi_rust_codegen": "PR02",
     "valdi_rust_dsl": "PR09",
+    "valdi_rust_dynamic_ui": "PR13",
     "valdi_rust_fixtures": "PR04",
     "valdi_rust_hot_reload": "PR11",
     "valdi_rust_ir": "PR02",
@@ -190,6 +199,34 @@ EXPECTED_IR_HOT_RELOAD = {
     ],
     "scope": "ir_hot_reload_pipeline_only",
 }
+EXPECTED_DYNAMIC_UI = {
+    "owner": "PR13",
+    "crate": "valdi_rust_dynamic_ui",
+    "test_suite_label": "//valdi_rust:dynamic_ui_tests",
+    "dynamic_ui_test_labels": [
+        "//valdi_rust/dynamic_ui:dynamic_producer_test",
+        "//valdi_rust/dynamic_ui:json_binary_loader_test",
+        "//valdi_rust/dynamic_ui:capability_negotiation_test",
+        "//valdi_rust/dynamic_ui:source_trust_diagnostic_test",
+        "//valdi_rust/dynamic_ui:runtime_validator_integration_test",
+        "//valdi_rust/dynamic_ui:snapshot_test",
+    ],
+    "snapshot_labels": [
+        "//valdi_rust/dynamic_ui:dynamic_ui_trace_snapshot",
+        "//valdi_rust/dynamic_ui:dynamic_ui_invalid_diagnostics_snapshot",
+    ],
+    "source_contract_label": "//docs/rust_migration:replacement_contract_yaml",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "supported_inputs": [
+        "json_debug",
+        "binary_bytes",
+        "generated_fixture",
+        "in_memory",
+    ],
+    "runtime_contract": "valdi_rust_runtime",
+    "backend_contract": "valdi_rust_backend",
+    "scope": "dynamic_ui_ingestion_only",
+}
 
 
 def fail(message):
@@ -263,6 +300,10 @@ def main():
     ir_hot_reload = graph.get("ir_hot_reload")
     if ir_hot_reload != EXPECTED_IR_HOT_RELOAD:
         fail(f"ir_hot_reload metadata mismatch: {ir_hot_reload} != {EXPECTED_IR_HOT_RELOAD}")
+
+    dynamic_ui = graph.get("dynamic_ui")
+    if dynamic_ui != EXPECTED_DYNAMIC_UI:
+        fail(f"dynamic_ui metadata mismatch: {dynamic_ui} != {EXPECTED_DYNAMIC_UI}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

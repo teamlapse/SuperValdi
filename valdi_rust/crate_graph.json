@@ -52,6 +52,20 @@
       "dependencies": ["valdi_rust_ir"]
     },
     {
+      "name": "valdi_rust_dynamic_ui",
+      "label": "//valdi_rust/dynamic_ui:dynamic_ui",
+      "owner": "PR13",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_dynamic_ui_ingestion",
+      "dependencies": [
+        "valdi_rust_backend",
+        "valdi_rust_codec",
+        "valdi_rust_fixtures",
+        "valdi_rust_ir",
+        "valdi_rust_runtime"
+      ]
+    },
+    {
       "name": "valdi_rust_hot_reload",
       "label": "//valdi_rust/hot_reload:hot_reload",
       "owner": "PR11",
@@ -226,6 +240,34 @@
     ],
     "scope": "ir_hot_reload_pipeline_only"
   },
+  "dynamic_ui": {
+    "owner": "PR13",
+    "crate": "valdi_rust_dynamic_ui",
+    "test_suite_label": "//valdi_rust:dynamic_ui_tests",
+    "dynamic_ui_test_labels": [
+      "//valdi_rust/dynamic_ui:dynamic_producer_test",
+      "//valdi_rust/dynamic_ui:json_binary_loader_test",
+      "//valdi_rust/dynamic_ui:capability_negotiation_test",
+      "//valdi_rust/dynamic_ui:source_trust_diagnostic_test",
+      "//valdi_rust/dynamic_ui:runtime_validator_integration_test",
+      "//valdi_rust/dynamic_ui:snapshot_test"
+    ],
+    "snapshot_labels": [
+      "//valdi_rust/dynamic_ui:dynamic_ui_trace_snapshot",
+      "//valdi_rust/dynamic_ui:dynamic_ui_invalid_diagnostics_snapshot"
+    ],
+    "source_contract_label": "//docs/rust_migration:replacement_contract_yaml",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "supported_inputs": [
+      "json_debug",
+      "binary_bytes",
+      "generated_fixture",
+      "in_memory"
+    ],
+    "runtime_contract": "valdi_rust_runtime",
+    "backend_contract": "valdi_rust_backend",
+    "scope": "dynamic_ui_ingestion_only"
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
@@ -251,6 +293,7 @@
       "//valdi_rust/codec:codec_sources",
       "//valdi_rust/codegen:codegen_sources",
       "//valdi_rust/dsl:dsl_sources",
+      "//valdi_rust/dynamic_ui:dynamic_ui_sources",
       "//valdi_rust/fixtures:fixtures_sources",
       "//valdi_rust/hot_reload:hot_reload_sources",
       "//valdi_rust/ir:ir_sources",

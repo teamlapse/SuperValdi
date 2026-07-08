@@ -1,0 +1,6 @@
+dynamic_ui_invalid_diagnostics_v1
+- code=DYNAMIC_UI_CAPABILITY_UNSUPPORTED path=$.producer.capabilities[] severity=error source=memory trust=first_party owner=PR13 node=<none>
+- code=DYNAMIC_UI_SOURCE_UNTRUSTED path=$.trust.level severity=error source=dynamic_ui.json trust=untrusted owner=PR01,PR05,PR13 node=node.dynamic_ui.root
+- code=DYNAMIC_UI_SCHEMA_PATH_INVALID path=$.source.schema_path severity=error source=dynamic_ui.json trust=generated_fixture owner=PR01,PR05,PR13 node=node.dynamic_ui.root
+- code=DYNAMIC_UI_OWNER_PR_MISMATCH path=$.metadata.owner_prs severity=error source=contract.dynamic_ui.v1 trust=generated_fixture owner=PR01,PR05,PR13 node=node.dynamic_ui.root
+- code=DYNAMIC_UI_NODE_ID_DRIFT path=$.ir_debug.root_node_id severity=error source=node_drift trust=first_party owner=PR01,PR05,PR13 node=node.dynamic_ui.changed
