@@ -12,6 +12,7 @@ REQUIRED_CRATES = {
     "valdi_rust_codegen",
     "valdi_rust_dsl",
     "valdi_rust_fixtures",
+    "valdi_rust_hot_reload",
     "valdi_rust_ir",
     "valdi_rust_runtime",
 }
@@ -28,6 +29,12 @@ EXPECTED_DEPENDENCIES = {
     "valdi_rust_codegen": ["valdi_rust_backend", "valdi_rust_ir"],
     "valdi_rust_dsl": ["valdi_rust_ir"],
     "valdi_rust_fixtures": ["valdi_rust_ir"],
+    "valdi_rust_hot_reload": [
+        "valdi_rust_backend",
+        "valdi_rust_dsl",
+        "valdi_rust_ir",
+        "valdi_rust_runtime",
+    ],
     "valdi_rust_ir": [],
     "valdi_rust_runtime": ["valdi_rust_backend", "valdi_rust_ir"],
 }
@@ -38,6 +45,7 @@ EXPECTED_OWNERS = {
     "valdi_rust_codegen": "PR02",
     "valdi_rust_dsl": "PR09",
     "valdi_rust_fixtures": "PR04",
+    "valdi_rust_hot_reload": "PR11",
     "valdi_rust_ir": "PR02",
     "valdi_rust_runtime": "PR02",
 }
@@ -145,6 +153,43 @@ EXPECTED_TSX_TO_IR_COMPATIBILITY = {
         "//valdi_rust/tests:rust_app_no_ts_dependency_test",
     ],
 }
+EXPECTED_IR_HOT_RELOAD = {
+    "owner": "PR11",
+    "crate": "valdi_rust_hot_reload",
+    "test_suite_label": "//valdi_rust:ir_hot_reload_tests",
+    "hot_reload_test_labels": [
+        "//valdi_rust/hot_reload:declarative_parser_test",
+        "//valdi_rust/hot_reload:patch_generator_test",
+        "//valdi_rust/hot_reload:live_patch_pipeline_test",
+        "//valdi_rust/hot_reload:rebuild_required_diagnostic_test",
+        "//valdi_rust/hot_reload:module_native_view_ref_test",
+        "//valdi_rust/hot_reload:binding_action_compatibility_test",
+        "//valdi_rust/hot_reload:latency_report_test",
+        "//valdi_rust/hot_reload:sample_host_snapshot_test",
+    ],
+    "snapshot_labels": [
+        "//valdi_rust/hot_reload:hot_reload_trace_snapshot",
+        "//valdi_rust/hot_reload:hot_reload_latency_snapshot",
+    ],
+    "supported_patch_families": [
+        "ui_tree",
+        "style",
+        "layout",
+        "text",
+        "asset",
+        "binding",
+        "event",
+        "accessibility",
+        "module_ref",
+        "native_view_ref",
+    ],
+    "unsupported_patch_diagnostics": [
+        "action_body_requires_pr12",
+        "module_contract_shape_changed",
+        "native_view_contract_shape_changed",
+    ],
+    "scope": "ir_hot_reload_pipeline_only",
+}
 
 
 def fail(message):
@@ -214,6 +259,10 @@ def main():
             "tsx_to_ir_compatibility metadata mismatch: "
             f"{tsx_to_ir_compatibility} != {EXPECTED_TSX_TO_IR_COMPATIBILITY}"
         )
+
+    ir_hot_reload = graph.get("ir_hot_reload")
+    if ir_hot_reload != EXPECTED_IR_HOT_RELOAD:
+        fail(f"ir_hot_reload metadata mismatch: {ir_hot_reload} != {EXPECTED_IR_HOT_RELOAD}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

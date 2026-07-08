@@ -92,3 +92,13 @@ test_suite(
         "//valdi_rust/tests:tsx_to_ir_compat_contract_test",
     ],
 )
+
+test_suite(
+    name = "ir_hot_reload_tests",
+    tests = [
+        "//valdi_rust/hot_reload:hot_reload_tests",
+        "//valdi_rust/tests:crate_graph_visibility_test",
+        "//valdi_rust/tests:forbidden_public_api_test",
+        "//valdi_rust/tests:rust_app_no_ts_dependency_test",
+    ],
+)

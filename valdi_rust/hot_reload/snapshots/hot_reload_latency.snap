@@ -1,0 +1,10 @@
+hot_reload_latency_report_v1
+budget_us=16000
+- segment=file_watch elapsed_us=700
+- segment=ir_generation elapsed_us=1900
+- segment=transport elapsed_us=600
+- segment=validation elapsed_us=1100
+- segment=runtime_diff elapsed_us=2400
+- segment=mock_backend_apply elapsed_us=1700
+- segment=host_receive elapsed_us=500
+total_us=8900

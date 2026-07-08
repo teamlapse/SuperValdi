@@ -52,6 +52,19 @@
       "dependencies": ["valdi_rust_ir"]
     },
     {
+      "name": "valdi_rust_hot_reload",
+      "label": "//valdi_rust/hot_reload:hot_reload",
+      "owner": "PR11",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_ir_hot_reload_pipeline",
+      "dependencies": [
+        "valdi_rust_backend",
+        "valdi_rust_dsl",
+        "valdi_rust_ir",
+        "valdi_rust_runtime"
+      ]
+    },
+    {
       "name": "valdi_rust_cli",
       "label": "//valdi_rust/cli:cli",
       "owner": "PR02",
@@ -176,6 +189,43 @@
       "//valdi_rust/tests:rust_app_no_ts_dependency_test"
     ]
   },
+  "ir_hot_reload": {
+    "owner": "PR11",
+    "crate": "valdi_rust_hot_reload",
+    "test_suite_label": "//valdi_rust:ir_hot_reload_tests",
+    "hot_reload_test_labels": [
+      "//valdi_rust/hot_reload:declarative_parser_test",
+      "//valdi_rust/hot_reload:patch_generator_test",
+      "//valdi_rust/hot_reload:live_patch_pipeline_test",
+      "//valdi_rust/hot_reload:rebuild_required_diagnostic_test",
+      "//valdi_rust/hot_reload:module_native_view_ref_test",
+      "//valdi_rust/hot_reload:binding_action_compatibility_test",
+      "//valdi_rust/hot_reload:latency_report_test",
+      "//valdi_rust/hot_reload:sample_host_snapshot_test"
+    ],
+    "snapshot_labels": [
+      "//valdi_rust/hot_reload:hot_reload_trace_snapshot",
+      "//valdi_rust/hot_reload:hot_reload_latency_snapshot"
+    ],
+    "supported_patch_families": [
+      "ui_tree",
+      "style",
+      "layout",
+      "text",
+      "asset",
+      "binding",
+      "event",
+      "accessibility",
+      "module_ref",
+      "native_view_ref"
+    ],
+    "unsupported_patch_diagnostics": [
+      "action_body_requires_pr12",
+      "module_contract_shape_changed",
+      "native_view_contract_shape_changed"
+    ],
+    "scope": "ir_hot_reload_pipeline_only"
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
@@ -202,6 +252,7 @@
       "//valdi_rust/codegen:codegen_sources",
       "//valdi_rust/dsl:dsl_sources",
       "//valdi_rust/fixtures:fixtures_sources",
+      "//valdi_rust/hot_reload:hot_reload_sources",
       "//valdi_rust/ir:ir_sources",
       "//valdi_rust/runtime:runtime_sources"
     ],

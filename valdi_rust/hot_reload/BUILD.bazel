@@ -1,0 +1,99 @@
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_framework_crate",
+    "valdi_rust_runtime_test",
+)
+
+valdi_rust_framework_crate(
+    name = "hot_reload",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "valdi_rust_hot_reload",
+    deps = [
+        "//valdi_rust/backend",
+        "//valdi_rust/dsl",
+        "//valdi_rust/ir",
+        "//valdi_rust/runtime",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+COMMON_TEST_DEPS = [
+    ":hot_reload",
+    "//valdi_rust/backend",
+    "//valdi_rust/ir",
+    "//valdi_rust/runtime",
+]
+
+filegroup(
+    name = "hot_reload_trace_snapshot",
+    srcs = ["snapshots/hot_reload_trace.snap"],
+)
+
+filegroup(
+    name = "hot_reload_latency_snapshot",
+    srcs = ["snapshots/hot_reload_latency.snap"],
+)
+
+valdi_rust_runtime_test(
+    name = "declarative_parser_test",
+    srcs = ["tests/declarative_parser_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "patch_generator_test",
+    srcs = ["tests/patch_generator_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "live_patch_pipeline_test",
+    srcs = ["tests/live_patch_pipeline_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "rebuild_required_diagnostic_test",
+    srcs = ["tests/rebuild_required_diagnostic_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "module_native_view_ref_test",
+    srcs = ["tests/module_native_view_ref_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "binding_action_compatibility_test",
+    srcs = ["tests/binding_action_compatibility_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "latency_report_test",
+    srcs = ["tests/latency_report_test.rs"],
+    compile_data = [":hot_reload_latency_snapshot"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "sample_host_snapshot_test",
+    srcs = ["tests/sample_host_snapshot_test.rs"],
+    compile_data = [":hot_reload_trace_snapshot"],
+    deps = COMMON_TEST_DEPS,
+)
+
+test_suite(
+    name = "hot_reload_tests",
+    tests = [
+        ":binding_action_compatibility_test",
+        ":declarative_parser_test",
+        ":latency_report_test",
+        ":live_patch_pipeline_test",
+        ":module_native_view_ref_test",
+        ":patch_generator_test",
+        ":rebuild_required_diagnostic_test",
+        ":sample_host_snapshot_test",
+    ],
+)
