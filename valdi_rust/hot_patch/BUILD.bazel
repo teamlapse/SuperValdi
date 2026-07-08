@@ -1,0 +1,84 @@
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_framework_crate",
+    "valdi_rust_runtime_test",
+)
+
+valdi_rust_framework_crate(
+    name = "hot_patch",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "valdi_rust_hot_patch",
+    deps = [
+        "//valdi_rust/hot_reload",
+        "//valdi_rust/ir",
+        "//valdi_rust/runtime",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+COMMON_TEST_DEPS = [
+    ":hot_patch",
+    "//valdi_rust/hot_reload",
+    "//valdi_rust/ir",
+    "//valdi_rust/runtime",
+]
+
+filegroup(
+    name = "hot_patch_trace_snapshot",
+    srcs = ["snapshots/hot_patch_trace.snap"],
+)
+
+filegroup(
+    name = "hot_patch_support_matrix_snapshot",
+    srcs = ["snapshots/hot_patch_support_matrix.snap"],
+)
+
+valdi_rust_runtime_test(
+    name = "action_body_detector_test",
+    srcs = ["tests/action_body_detector_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "live_action_body_patch_test",
+    srcs = ["tests/live_action_body_patch_test.rs"],
+    compile_data = [":hot_patch_trace_snapshot"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "unsupported_edit_classification_test",
+    srcs = ["tests/unsupported_edit_classification_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "dev_server_message_test",
+    srcs = ["tests/dev_server_message_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "release_exclusion_test",
+    srcs = ["tests/release_exclusion_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "support_matrix_snapshot_test",
+    srcs = ["tests/support_matrix_snapshot_test.rs"],
+    compile_data = [":hot_patch_support_matrix_snapshot"],
+    deps = COMMON_TEST_DEPS,
+)
+
+test_suite(
+    name = "hot_patch_tests",
+    tests = [
+        ":action_body_detector_test",
+        ":dev_server_message_test",
+        ":live_action_body_patch_test",
+        ":release_exclusion_test",
+        ":support_matrix_snapshot_test",
+        ":unsupported_edit_classification_test",
+    ],
+)

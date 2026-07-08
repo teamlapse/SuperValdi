@@ -102,3 +102,13 @@ test_suite(
         "//valdi_rust/tests:rust_app_no_ts_dependency_test",
     ],
 )
+
+test_suite(
+    name = "rust_hot_patch_tests",
+    tests = [
+        "//valdi_rust/hot_patch:hot_patch_tests",
+        "//valdi_rust/tests:crate_graph_visibility_test",
+        "//valdi_rust/tests:forbidden_public_api_test",
+        "//valdi_rust/tests:rust_app_no_ts_dependency_test",
+    ],
+)

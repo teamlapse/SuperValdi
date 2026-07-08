@@ -65,6 +65,18 @@
       ]
     },
     {
+      "name": "valdi_rust_hot_patch",
+      "label": "//valdi_rust/hot_patch:hot_patch",
+      "owner": "PR12",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_logic_hot_patch_dev_tooling",
+      "dependencies": [
+        "valdi_rust_hot_reload",
+        "valdi_rust_ir",
+        "valdi_rust_runtime"
+      ]
+    },
+    {
       "name": "valdi_rust_cli",
       "label": "//valdi_rust/cli:cli",
       "owner": "PR02",
@@ -226,6 +238,39 @@
     ],
     "scope": "ir_hot_reload_pipeline_only"
   },
+  "rust_hot_patch": {
+    "owner": "PR12",
+    "crate": "valdi_rust_hot_patch",
+    "test_suite_label": "//valdi_rust:rust_hot_patch_tests",
+    "hot_patch_test_labels": [
+      "//valdi_rust/hot_patch:action_body_detector_test",
+      "//valdi_rust/hot_patch:live_action_body_patch_test",
+      "//valdi_rust/hot_patch:unsupported_edit_classification_test",
+      "//valdi_rust/hot_patch:dev_server_message_test",
+      "//valdi_rust/hot_patch:release_exclusion_test",
+      "//valdi_rust/hot_patch:support_matrix_snapshot_test"
+    ],
+    "snapshot_labels": [
+      "//valdi_rust/hot_patch:hot_patch_trace_snapshot",
+      "//valdi_rust/hot_patch:hot_patch_support_matrix_snapshot"
+    ],
+    "supported_edit_classes": ["action_body"],
+    "unsupported_edit_classes": [
+      "signature",
+      "type",
+      "module",
+      "state_shape",
+      "dependency",
+      "macro",
+      "crate_graph",
+      "platform_boundary"
+    ],
+    "release_exclusion": {
+      "release_hot_patch_machinery_present": false,
+      "release_dev_loader_symbols": 0
+    },
+    "scope": "rust_logic_hot_patch_action_body_only"
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
@@ -253,6 +298,7 @@
       "//valdi_rust/dsl:dsl_sources",
       "//valdi_rust/fixtures:fixtures_sources",
       "//valdi_rust/hot_reload:hot_reload_sources",
+      "//valdi_rust/hot_patch:hot_patch_sources",
       "//valdi_rust/ir:ir_sources",
       "//valdi_rust/runtime:runtime_sources"
     ],
