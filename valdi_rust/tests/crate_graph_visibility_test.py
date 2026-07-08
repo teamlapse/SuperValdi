@@ -12,6 +12,7 @@ REQUIRED_CRATES = {
     "valdi_rust_codegen",
     "valdi_rust_dsl",
     "valdi_rust_fixtures",
+    "valdi_rust_hot_patch",
     "valdi_rust_hot_reload",
     "valdi_rust_ir",
     "valdi_rust_runtime",
@@ -29,6 +30,11 @@ EXPECTED_DEPENDENCIES = {
     "valdi_rust_codegen": ["valdi_rust_backend", "valdi_rust_ir"],
     "valdi_rust_dsl": ["valdi_rust_ir"],
     "valdi_rust_fixtures": ["valdi_rust_ir"],
+    "valdi_rust_hot_patch": [
+        "valdi_rust_hot_reload",
+        "valdi_rust_ir",
+        "valdi_rust_runtime",
+    ],
     "valdi_rust_hot_reload": [
         "valdi_rust_backend",
         "valdi_rust_dsl",
@@ -45,6 +51,7 @@ EXPECTED_OWNERS = {
     "valdi_rust_codegen": "PR02",
     "valdi_rust_dsl": "PR09",
     "valdi_rust_fixtures": "PR04",
+    "valdi_rust_hot_patch": "PR12",
     "valdi_rust_hot_reload": "PR11",
     "valdi_rust_ir": "PR02",
     "valdi_rust_runtime": "PR02",
@@ -190,6 +197,39 @@ EXPECTED_IR_HOT_RELOAD = {
     ],
     "scope": "ir_hot_reload_pipeline_only",
 }
+EXPECTED_RUST_HOT_PATCH = {
+    "owner": "PR12",
+    "crate": "valdi_rust_hot_patch",
+    "test_suite_label": "//valdi_rust:rust_hot_patch_tests",
+    "hot_patch_test_labels": [
+        "//valdi_rust/hot_patch:action_body_detector_test",
+        "//valdi_rust/hot_patch:live_action_body_patch_test",
+        "//valdi_rust/hot_patch:unsupported_edit_classification_test",
+        "//valdi_rust/hot_patch:dev_server_message_test",
+        "//valdi_rust/hot_patch:release_exclusion_test",
+        "//valdi_rust/hot_patch:support_matrix_snapshot_test",
+    ],
+    "snapshot_labels": [
+        "//valdi_rust/hot_patch:hot_patch_trace_snapshot",
+        "//valdi_rust/hot_patch:hot_patch_support_matrix_snapshot",
+    ],
+    "supported_edit_classes": ["action_body"],
+    "unsupported_edit_classes": [
+        "signature",
+        "type",
+        "module",
+        "state_shape",
+        "dependency",
+        "macro",
+        "crate_graph",
+        "platform_boundary",
+    ],
+    "release_exclusion": {
+        "release_hot_patch_machinery_present": False,
+        "release_dev_loader_symbols": 0,
+    },
+    "scope": "rust_logic_hot_patch_action_body_only",
+}
 
 
 def fail(message):
@@ -263,6 +303,10 @@ def main():
     ir_hot_reload = graph.get("ir_hot_reload")
     if ir_hot_reload != EXPECTED_IR_HOT_RELOAD:
         fail(f"ir_hot_reload metadata mismatch: {ir_hot_reload} != {EXPECTED_IR_HOT_RELOAD}")
+
+    rust_hot_patch = graph.get("rust_hot_patch")
+    if rust_hot_patch != EXPECTED_RUST_HOT_PATCH:
+        fail(f"rust_hot_patch metadata mismatch: {rust_hot_patch} != {EXPECTED_RUST_HOT_PATCH}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

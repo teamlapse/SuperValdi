@@ -1,0 +1,9 @@
+hot_patch_trace_v1
+fixture=hot_patch.trace.v1
+session=hot_patch.session.v1
+action=action.save
+before_dispatch=body.save.v1
+session=hot_patch.session.v1 kind=applied action=action.save code=HOT_PATCH_ACTION_BODY_SUPPORTED path=$.rust_hot_patch.action_body severity=info reason=action_body_changed message=action action.save patched generation 1 body.save.v1->business_logic
+after_dispatch=business_logic
+release_hot_patch_machinery_present=false
+release_dev_loader_symbols=0
