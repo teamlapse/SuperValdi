@@ -44,6 +44,14 @@
       "external_dependencies": ["postcard", "serde", "serde_json"]
     },
     {
+      "name": "valdi_rust_dsl",
+      "label": "//valdi_rust/dsl:dsl",
+      "owner": "PR09",
+      "visibility": "public_framework_crate",
+      "public_api_boundary": "rust_ui_dsl_app_authoring",
+      "dependencies": ["valdi_rust_ir"]
+    },
+    {
       "name": "valdi_rust_cli",
       "label": "//valdi_rust/cli:cli",
       "owner": "PR02",
@@ -140,6 +148,21 @@
     "snapshot_label": "//valdi_rust/runtime:state_binding_action_trace_snapshot",
     "scope": "state_bindings_actions_only"
   },
+  "rust_ui_dsl": {
+    "owner": "PR09",
+    "crate": "valdi_rust_dsl",
+    "test_suite_label": "//valdi_rust:rust_ui_dsl_tests",
+    "dsl_test_labels": [
+      "//valdi_rust/dsl:dsl_contract_golden_test",
+      "//valdi_rust/dsl:invalid_dsl_diagnostic_test",
+      "//valdi_rust/dsl:rust_app_sample_compile_test",
+      "//valdi_rust/dsl:no_forbidden_dependency_test"
+    ],
+    "snapshot_label": "//valdi_rust/dsl:dsl_canonical_ir_snapshot",
+    "source_contract_label": "//docs/rust_migration:replacement_contract_yaml",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "scope": "rust_ui_dsl_only"
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
@@ -164,6 +187,7 @@
       "//valdi_rust/cli:cli_sources",
       "//valdi_rust/codec:codec_sources",
       "//valdi_rust/codegen:codegen_sources",
+      "//valdi_rust/dsl:dsl_sources",
       "//valdi_rust/fixtures:fixtures_sources",
       "//valdi_rust/ir:ir_sources",
       "//valdi_rust/runtime:runtime_sources"

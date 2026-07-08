@@ -10,6 +10,7 @@ REQUIRED_CRATES = {
     "valdi_rust_cli",
     "valdi_rust_codec",
     "valdi_rust_codegen",
+    "valdi_rust_dsl",
     "valdi_rust_fixtures",
     "valdi_rust_ir",
     "valdi_rust_runtime",
@@ -25,6 +26,7 @@ EXPECTED_DEPENDENCIES = {
     ],
     "valdi_rust_codec": ["valdi_rust_ir"],
     "valdi_rust_codegen": ["valdi_rust_backend", "valdi_rust_ir"],
+    "valdi_rust_dsl": ["valdi_rust_ir"],
     "valdi_rust_fixtures": ["valdi_rust_ir"],
     "valdi_rust_ir": [],
     "valdi_rust_runtime": ["valdi_rust_backend", "valdi_rust_ir"],
@@ -34,6 +36,7 @@ EXPECTED_OWNERS = {
     "valdi_rust_cli": "PR02",
     "valdi_rust_codec": "PR05",
     "valdi_rust_codegen": "PR02",
+    "valdi_rust_dsl": "PR09",
     "valdi_rust_fixtures": "PR04",
     "valdi_rust_ir": "PR02",
     "valdi_rust_runtime": "PR02",
@@ -114,6 +117,21 @@ EXPECTED_STATE_BINDINGS_ACTIONS = {
     "snapshot_label": "//valdi_rust/runtime:state_binding_action_trace_snapshot",
     "scope": "state_bindings_actions_only",
 }
+EXPECTED_RUST_UI_DSL = {
+    "owner": "PR09",
+    "crate": "valdi_rust_dsl",
+    "test_suite_label": "//valdi_rust:rust_ui_dsl_tests",
+    "dsl_test_labels": [
+        "//valdi_rust/dsl:dsl_contract_golden_test",
+        "//valdi_rust/dsl:invalid_dsl_diagnostic_test",
+        "//valdi_rust/dsl:rust_app_sample_compile_test",
+        "//valdi_rust/dsl:no_forbidden_dependency_test",
+    ],
+    "snapshot_label": "//valdi_rust/dsl:dsl_canonical_ir_snapshot",
+    "source_contract_label": "//docs/rust_migration:replacement_contract_yaml",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "scope": "rust_ui_dsl_only",
+}
 
 
 def fail(message):
@@ -172,6 +190,10 @@ def main():
             "state_bindings_actions metadata mismatch: "
             f"{state_bindings_actions} != {EXPECTED_STATE_BINDINGS_ACTIONS}"
         )
+
+    rust_ui_dsl = graph.get("rust_ui_dsl")
+    if rust_ui_dsl != EXPECTED_RUST_UI_DSL:
+        fail(f"rust_ui_dsl metadata mismatch: {rust_ui_dsl} != {EXPECTED_RUST_UI_DSL}")
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])
