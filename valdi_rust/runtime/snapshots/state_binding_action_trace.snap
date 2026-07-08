@@ -1,0 +1,11 @@
+state_binding_action_trace_v1
+fixture=runtime.state_bindings_actions.v1
+state app.user.name=Ada
+binding binding.user_name=Ada
+binding binding.cart_count=2
+binding binding.platform_os=ios
+event node.button.tap -> action.save
+action save status=completed schedule=Immediate key=<none> invalidates=app
+action load status=scheduled schedule=Deferred key=load.user invalidates=<none>
+action load.coalesce status=coalesced schedule=Deferred key=load.user invalidates=<none>
+action load.complete status=completed schedule=Deferred key=load.user invalidates=app

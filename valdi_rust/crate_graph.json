@@ -125,6 +125,21 @@
     "operation_contract_crate": "valdi_rust_backend",
     "scope": "runtime_tree_diff_only"
   },
+  "state_bindings_actions": {
+    "owner": "PR08",
+    "crate": "valdi_rust_runtime",
+    "test_suite_label": "//valdi_rust:state_bindings_actions_tests",
+    "runtime_test_labels": [
+      "//valdi_rust/runtime:state_store_test",
+      "//valdi_rust/runtime:binding_evaluator_test",
+      "//valdi_rust/runtime:action_scheduler_test",
+      "//valdi_rust/runtime:event_action_binding_test",
+      "//valdi_rust/runtime:state_patch_compatibility_test",
+      "//valdi_rust/runtime:state_binding_action_snapshot_test"
+    ],
+    "snapshot_label": "//valdi_rust/runtime:state_binding_action_trace_snapshot",
+    "scope": "state_bindings_actions_only"
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},

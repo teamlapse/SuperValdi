@@ -66,3 +66,10 @@ test_suite(
         "//valdi_rust/runtime:runtime_tree_diff_tests",
     ],
 )
+
+test_suite(
+    name = "state_bindings_actions_tests",
+    tests = [
+        "//valdi_rust/runtime:state_bindings_actions_tests",
+    ],
+)
