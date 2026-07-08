@@ -26,6 +26,11 @@ filegroup(
     srcs = ["snapshots/static_fixture_backend_ops.snap"],
 )
 
+filegroup(
+    name = "state_binding_action_trace_snapshot",
+    srcs = ["snapshots/state_binding_action_trace.snap"],
+)
+
 valdi_rust_runtime_test(
     name = "document_loader_test",
     srcs = ["tests/document_loader_test.rs"],
@@ -57,6 +62,43 @@ valdi_rust_runtime_test(
     deps = COMMON_TEST_DEPS,
 )
 
+valdi_rust_runtime_test(
+    name = "state_store_test",
+    srcs = ["tests/state_store_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "binding_evaluator_test",
+    srcs = ["tests/binding_evaluator_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "action_scheduler_test",
+    srcs = ["tests/action_scheduler_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "event_action_binding_test",
+    srcs = ["tests/event_action_binding_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "state_patch_compatibility_test",
+    srcs = ["tests/state_patch_compatibility_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_runtime_test(
+    name = "state_binding_action_snapshot_test",
+    srcs = ["tests/state_binding_action_snapshot_test.rs"],
+    compile_data = [":state_binding_action_trace_snapshot"],
+    deps = COMMON_TEST_DEPS,
+)
+
 test_suite(
     name = "runtime_tree_diff_tests",
     tests = [
@@ -65,5 +107,17 @@ test_suite(
         ":rebuild_diagnostic_test",
         ":static_fixture_backend_ops_snapshot_test",
         ":tree_diff_test",
+    ],
+)
+
+test_suite(
+    name = "state_bindings_actions_tests",
+    tests = [
+        ":action_scheduler_test",
+        ":binding_evaluator_test",
+        ":event_action_binding_test",
+        ":state_binding_action_snapshot_test",
+        ":state_patch_compatibility_test",
+        ":state_store_test",
     ],
 )

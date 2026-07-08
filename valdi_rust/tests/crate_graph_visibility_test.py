@@ -99,6 +99,21 @@ EXPECTED_RUNTIME_TREE_DIFF = {
     "operation_contract_crate": "valdi_rust_backend",
     "scope": "runtime_tree_diff_only",
 }
+EXPECTED_STATE_BINDINGS_ACTIONS = {
+    "owner": "PR08",
+    "crate": "valdi_rust_runtime",
+    "test_suite_label": "//valdi_rust:state_bindings_actions_tests",
+    "runtime_test_labels": [
+        "//valdi_rust/runtime:state_store_test",
+        "//valdi_rust/runtime:binding_evaluator_test",
+        "//valdi_rust/runtime:action_scheduler_test",
+        "//valdi_rust/runtime:event_action_binding_test",
+        "//valdi_rust/runtime:state_patch_compatibility_test",
+        "//valdi_rust/runtime:state_binding_action_snapshot_test",
+    ],
+    "snapshot_label": "//valdi_rust/runtime:state_binding_action_trace_snapshot",
+    "scope": "state_bindings_actions_only",
+}
 
 
 def fail(message):
@@ -150,6 +165,13 @@ def main():
     runtime_tree_diff = graph.get("runtime_tree_diff")
     if runtime_tree_diff != EXPECTED_RUNTIME_TREE_DIFF:
         fail(f"runtime_tree_diff metadata mismatch: {runtime_tree_diff} != {EXPECTED_RUNTIME_TREE_DIFF}")
+
+    state_bindings_actions = graph.get("state_bindings_actions")
+    if state_bindings_actions != EXPECTED_STATE_BINDINGS_ACTIONS:
+        fail(
+            "state_bindings_actions metadata mismatch: "
+            f"{state_bindings_actions} != {EXPECTED_STATE_BINDINGS_ACTIONS}"
+        )
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

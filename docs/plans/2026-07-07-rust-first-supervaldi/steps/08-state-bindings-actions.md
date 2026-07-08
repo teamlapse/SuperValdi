@@ -6,6 +6,8 @@ Purpose: Add Rust state, binding evaluation, and action dispatch.
 
 Depends on: PR07
 
+Status: Complete
+
 Code boundary:
 - Rust owns state storage, binding resolver, expression evaluator, action scheduler, and typed errors.
 - No JavaScript action runtime is used by Rust-authored apps.
@@ -17,11 +19,14 @@ Changes:
 - Add event-to-action binding table.
 
 Proof:
-- State fixtures update predictably.
-- Binding fixtures resolve exact values or diagnostics.
-- Action cancellation and typed error fixtures pass.
-- Compatible state survives runtime patches.
+- `//valdi_rust:state_bindings_actions_tests` covers typed state storage, binding evaluation, action scheduling, event-to-action resolution, retained state compatibility, and trace snapshot stability.
+- `//valdi_rust/runtime:state_store_test` proves typed get/set/update/invalidation and exact missing or wrong-type diagnostics.
+- `//valdi_rust/runtime:binding_evaluator_test` proves field paths, nullable values, boolean logic, comparisons, list projections, computed projections, platform constants, source span diagnostics, and missing-field rejection.
+- `//valdi_rust/runtime:action_scheduler_test` proves sync result, deterministic async simulation, typed error, cancellation identity, coalescing, scheduling policy, invalidation output, and canceled-action reuse rejection.
+- `//valdi_rust/runtime:event_action_binding_test` proves typed event-to-action resolution and missing action/mapping diagnostics.
+- `//valdi_rust/runtime:state_patch_compatibility_test` proves compatible runtime patches retain state and incompatible state identity returns exact diagnostics.
+- `//valdi_rust/runtime:state_binding_action_snapshot_test` checks the deterministic state/binding/action trace snapshot and removed-invalidation negative case.
 
 Plan update:
-- Mark PR08 complete.
-- Add action/binding receipts.
+- Marked PR08 complete.
+- Added action/binding receipts.
