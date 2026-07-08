@@ -1,0 +1,13 @@
+hot_reload_trace_v1
+fixture=hot_reload.trace.v1
+session=hot_reload.session.v1
+patch=patch.tree family=ui_tree compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,create,move,transaction_group
+patch=patch.style family=style compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,attribute_style,transaction_group
+patch=patch.layout family=layout compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,layout_callback,transaction_group
+patch=patch.text family=text compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,attribute_style,text_measure,transaction_group
+patch=patch.asset family=asset compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,asset_load,transaction_group
+patch=patch.binding family=binding compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,attribute_style,transaction_group
+patch=patch.event family=event compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,attribute_style,transaction_group
+patch=patch.accessibility family=accessibility compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,attribute_style,transaction_group
+patch=patch.module family=module_ref compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,transaction_group,transaction_group
+patch=patch.native_view family=native_view_ref compatibility=UiOnly received=true state_preserved=true rebuilds=0 operations=transaction_group,native_view_mount,transaction_group
