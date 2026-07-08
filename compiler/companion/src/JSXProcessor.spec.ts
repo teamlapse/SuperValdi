@@ -1605,4 +1605,17 @@ function onRender(viewModel: ViewModel) {
     expect(result).toContain("__Renderer.setAttributeString('macosClass', MC)");
     expect(result).toContain("__Renderer.setAttributeString('webClass', WC)");
   });
+
+  it('keeps the retained direct-renderer JSX output path for existing TSX apps', () => {
+    const result = compile(`
+    <layout key={'retained'} width={42}>
+      <label value={'retained renderer'} />
+    </layout>
+    `);
+    expect(result).toContain("const __Renderer = require('valdi_core/src/JSX').jsx;");
+    expect(result).toContain("__Renderer.makeNodePrototype('layout'");
+    expect(result).toContain("__Renderer.beginRender(__nodeLayout1, 'retained');");
+    expect(result).toContain("__Renderer.makeNodePrototype('label', ['value', 'retained renderer'])");
+    expect(result).not.toContain('tsx_normalized_ir_sidecar_v1');
+  });
 });

@@ -163,6 +163,19 @@
     "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
     "scope": "rust_ui_dsl_only"
   },
+  "tsx_to_ir_compatibility": {
+    "owner": "PR10",
+    "compatibility_package": "compiler/companion/src/tsx_ir_compat",
+    "coverage_manifest_label": "//compiler/companion:tsx_feature_coverage_manifest",
+    "source_contract_label": "//docs/rust_migration:replacement_contract_yaml",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "rust_app_dependency": false,
+    "rust_crate_dependencies": [],
+    "test_labels": [
+      "//valdi_rust/tests:tsx_to_ir_compat_contract_test",
+      "//valdi_rust/tests:rust_app_no_ts_dependency_test"
+    ]
+  },
   "platform_host_placeholders": [
     {"platform": "ios", "label": "//valdi_rust/tests:ios_host_placeholder", "owner": "PR02"},
     {"platform": "android", "label": "//valdi_rust/tests:android_host_placeholder", "owner": "PR02"},
