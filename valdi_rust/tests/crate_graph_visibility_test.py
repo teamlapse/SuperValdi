@@ -132,6 +132,19 @@ EXPECTED_RUST_UI_DSL = {
     "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
     "scope": "rust_ui_dsl_only",
 }
+EXPECTED_TSX_TO_IR_COMPATIBILITY = {
+    "owner": "PR10",
+    "compatibility_package": "compiler/companion/src/tsx_ir_compat",
+    "coverage_manifest_label": "//compiler/companion:tsx_feature_coverage_manifest",
+    "source_contract_label": "//docs/rust_migration:replacement_contract_yaml",
+    "source_fixture_manifest_label": "//valdi_rust/fixtures:contract_fixture_manifest",
+    "rust_app_dependency": False,
+    "rust_crate_dependencies": [],
+    "test_labels": [
+        "//valdi_rust/tests:tsx_to_ir_compat_contract_test",
+        "//valdi_rust/tests:rust_app_no_ts_dependency_test",
+    ],
+}
 
 
 def fail(message):
@@ -194,6 +207,13 @@ def main():
     rust_ui_dsl = graph.get("rust_ui_dsl")
     if rust_ui_dsl != EXPECTED_RUST_UI_DSL:
         fail(f"rust_ui_dsl metadata mismatch: {rust_ui_dsl} != {EXPECTED_RUST_UI_DSL}")
+
+    tsx_to_ir_compatibility = graph.get("tsx_to_ir_compatibility")
+    if tsx_to_ir_compatibility != EXPECTED_TSX_TO_IR_COMPATIBILITY:
+        fail(
+            "tsx_to_ir_compatibility metadata mismatch: "
+            f"{tsx_to_ir_compatibility} != {EXPECTED_TSX_TO_IR_COMPATIBILITY}"
+        )
 
     platform_hosts = graph.get("platform_host_placeholders", [])
     fixture_tests = graph.get("fixture_test_labels", [])

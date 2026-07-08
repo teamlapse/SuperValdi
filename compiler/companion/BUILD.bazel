@@ -179,6 +179,12 @@ exports_files(
     visibility = ["//visibility:public"],
 )
 
+filegroup(
+    name = "tsx_feature_coverage_manifest",
+    srcs = ["src/tsx_ir_compat/tsx_feature_coverage_manifest.json"],
+    visibility = ["//visibility:public"],
+)
+
 webpack_bin.webpack(
     name = "bundle_js",
     srcs = [
