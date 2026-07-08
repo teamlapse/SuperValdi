@@ -1,0 +1,23 @@
+dsl_canonical_ir_v1
+schema_versioning|contract.schema_versioning.v1|node.schema_versioning.root|component.schema_versioning|schema_versioning|schema.version,feature flags,capability IDs,binary/JSON versions
+component_identity|contract.component_identity.v1|node.component_identity.root|component.component_identity|component_identity|component IDs,node IDs,keys,state identity,source spans,hot reload identity,dynamic identity
+tree_structure|contract.tree_structure.v1|node.tree_structure.root|component.tree_structure|tree_structure|root,parent order,keyed movement,fragments,slots,portals,contexts,destruction,pooling
+element_taxonomy|contract.element_taxonomy.v1|node.element_taxonomy.root|component.element_taxonomy|element_taxonomy|view,layout,scroll,image,text,rich text,text input,controls,list,webview,native view,drawing host
+layout|contract.layout.v1|node.layout.root|component.layout|layout|Yoga/flex,absolute,min/max,measure,safe area,scroll sizing,z order,clipping,transform,RTL
+styling|contract.styling.v1|node.styling.root|component.styling|styling|backgrounds,colors,opacity,border,radius,shadow,overflow,visibility,display,transform,class metadata,platform extensions
+text|contract.text.v1|node.text.root|component.text|text|plain text,rich spans,fonts,wrapping,truncation,links,measure hooks,input value,selection,composition
+assets|contract.assets.v1|node.assets.root|component.assets|assets|local assets,variants,remote refs,data refs,resize modes,loading state,errors,animated metadata,cache identity
+events_gestures|contract.events_gestures.v1|node.events_gestures.root|component.events_gestures|events_gestures|tap,press,long press,pan,scroll,focus,blur,input,keyboard submit,layout,draw,visibility,frame observer,custom native events
+actions_state|contract.actions_state.v1|node.actions_state.root|component.actions_state|actions_state|sync actions,async actions,results,typed errors,cancellation,invalidation,scheduling,coalescing
+bindings_expressions|contract.bindings_expressions.v1|node.bindings_expressions.root|component.bindings_expressions|bindings_expressions|field paths,literals,nullable values,logic,comparisons,lists,computed projections,platform constants,source spans
+animations|contract.animations.v1|node.animations.root|component.animations|animations|start,end,cancel,timing,easing,delay,repeat,fill mode,property animation,layout animation,transaction grouping
+native_modules|contract.native_modules.v1|node.native_modules.root|component.native_modules|native_modules|Rust contracts,complete type matrix,dispatch targets,Swift/Kotlin/JS/Rust/C++ transition/TS factories
+native_views|contract.native_views.v1|node.native_views.root|component.native_views|native_views|Rust contracts,typed attrs,typed events,lifecycle,measurement,reuse,platform extensions,accessibility,fallback
+accessibility|contract.accessibility.v1|node.accessibility.root|component.accessibility|accessibility|role,label,hint,value,state,action,focus order,grouping,hidden state,platform overrides
+hot_reload|contract.hot_reload.v1|node.hot_reload.root|component.hot_reload|hot_reload|patch identity,source spans,compatibility,assets,bindings,actions,module refs,native view refs
+diagnostics|contract.diagnostics.v1|node.diagnostics.root|component.diagnostics|diagnostics|schema paths,source spans,backend paths,capability errors,unsupported attrs/events,fixture IDs,action IDs,module IDs
+web_dom|contract.web_dom.v1|node.web_dom.root|component.web_dom|web_dom|DOM mapping,CSS/style mapping,events,text measurement,class emission,browser snapshots
+png_backend|contract.png_backend.v1|node.png_backend.root|component.png_backend|png_backend|layout snapshot,display list,text,image,native/webview fallback,accessibility debug metadata
+dynamic_ui|contract.dynamic_ui.v1|node.dynamic_ui.root|component.dynamic_ui|dynamic_ui|validated IR from Rust DSL,generated fixtures,JSON debug,binary bytes,in-memory producers
+ts_compatibility|contract.ts_compatibility.v1|node.ts_compatibility.root|component.ts_compatibility|ts_compatibility|TSX coverage map,direct renderer compatibility,TSX-to-IR equivalence,no Rust-path TS dependency
+build_graph|contract.build_graph.v1|node.build_graph.root|component.build_graph|build_graph|Bazel targets,crate graph,generated glue,platform app targets,compatibility labels,forbidden dependency checks

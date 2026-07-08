@@ -1,0 +1,67 @@
+load(
+    "//bzl/valdi:valdi_rust.bzl",
+    "valdi_rust_codec_test",
+    "valdi_rust_framework_crate",
+    "valdi_rust_schema_test",
+)
+
+valdi_rust_framework_crate(
+    name = "dsl",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "valdi_rust_dsl",
+    deps = ["//valdi_rust/ir"],
+    visibility = ["//visibility:public"],
+)
+
+COMMON_TEST_DEPS = [
+    ":dsl",
+    "//valdi_rust/codec",
+    "//valdi_rust/fixtures",
+    "//valdi_rust/ir",
+]
+
+COMMON_TEST_DATA = [
+    "//docs/rust_migration:replacement_contract_yaml",
+    "//valdi_rust/fixtures:contract_fixture_manifest",
+    "//valdi_rust/fixtures:serialized_fixtures",
+]
+
+filegroup(
+    name = "dsl_canonical_ir_snapshot",
+    srcs = ["snapshots/dsl_canonical_ir.snap"],
+)
+
+valdi_rust_codec_test(
+    name = "dsl_contract_golden_test",
+    srcs = ["tests/dsl_contract_golden_test.rs"],
+    compile_data = COMMON_TEST_DATA + [":dsl_canonical_ir_snapshot"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_schema_test(
+    name = "invalid_dsl_diagnostic_test",
+    srcs = ["tests/invalid_dsl_diagnostic_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_schema_test(
+    name = "rust_app_sample_compile_test",
+    srcs = ["tests/rust_app_sample_compile_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+valdi_rust_schema_test(
+    name = "no_forbidden_dependency_test",
+    srcs = ["tests/no_forbidden_dependency_test.rs"],
+    deps = COMMON_TEST_DEPS,
+)
+
+test_suite(
+    name = "dsl_tests",
+    tests = [
+        ":dsl_contract_golden_test",
+        ":invalid_dsl_diagnostic_test",
+        ":no_forbidden_dependency_test",
+        ":rust_app_sample_compile_test",
+    ],
+)

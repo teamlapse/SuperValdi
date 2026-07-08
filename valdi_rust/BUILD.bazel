@@ -73,3 +73,12 @@ test_suite(
         "//valdi_rust/runtime:state_bindings_actions_tests",
     ],
 )
+
+test_suite(
+    name = "rust_ui_dsl_tests",
+    tests = [
+        "//valdi_rust/dsl:dsl_tests",
+        "//valdi_rust/tests:crate_graph_visibility_test",
+        "//valdi_rust/tests:forbidden_public_api_test",
+    ],
+)
