@@ -1,0 +1,8 @@
+dynamic_ui_trace_v1
+fixture=contract.dynamic_ui.v1
+operations:
+- family=transaction_group capability=transaction_groups
+- family=create capability=view_tree
+- family=root capability=view_tree
+- family=destroy capability=view_tree
+- family=transaction_group capability=transaction_groups
